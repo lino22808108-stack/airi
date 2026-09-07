@@ -70,7 +70,7 @@ async function listStreamingModelCatalog(): Promise<ProviderModelCatalog> {
   }
 }
 
-export const providerOfficialChat = defineProvider({
+export const providerOfficialChat = defineProvider<{ api?: 'chat-completions' | 'responses' }, typeof OFFICIAL_CHAT_PROVIDER_ID>({
   id: OFFICIAL_CHAT_PROVIDER_ID,
   order: -1,
   name: 'Official Provider',
@@ -82,8 +82,15 @@ export const providerOfficialChat = defineProvider({
   requiresCredentials: false,
   configuredBy: 'authentication',
 
-  createProviderConfig: () => officialConfigSchema,
-  createProvider(_config) {
+  createProviderConfig: ({ t }) => z.object({
+    api: z.enum(['chat-completions', 'responses']).default('chat-completions').meta({
+      type: 'select',
+      options: [{ label: 'Chat Completions', value: 'chat-completions' }, { label: 'Responses API', value: 'responses' }],
+      labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-protocol.label'),
+      descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-protocol.description'),
+    }),
+  }),
+  createProvider(config) {
     const provider = createOfficialOpenAIProvider()
     const originalChat = provider.chat.bind(provider)
     provider.chat = (model: string) => {
@@ -91,7 +98,10 @@ export const providerOfficialChat = defineProvider({
       result.fetch = withCredentials()
       return result
     }
-    return provider
+    return {
+      ...provider,
+      responses: config.api === 'responses' ? (model: string) => provider.chat(model) : undefined,
+    }
   },
 
   validationRequiredWhen: () => false,
