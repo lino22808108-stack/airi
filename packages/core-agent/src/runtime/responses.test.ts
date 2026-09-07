@@ -338,3 +338,24 @@ it('does not send hosted search when disabled', async () => {
   }
   await streamFrom({ model: 'test', chatProvider: provider(fetch), context: { turns: [] } })
 })
+
+// https://github.com/moeru-ai/airi/pull/2200
+it('preserves sampling controls when routing through either protocol adapter', async () => {
+  // ROOT CAUSE:
+  // Main added sampling options to the old streamText call. Keeping only the
+  // protocol dispatch during the merge would drop them from both wire requests.
+  const requests: unknown[] = []
+  const fetch: typeof globalThis.fetch = async (url, init) => {
+    requests.push(JSON.parse(String(init?.body)))
+    return String(url).endsWith('/responses')
+      ? sse(completed([]))
+      : sse([{ choices: [{ index: 0, delta: { content: 'ok' }, finish_reason: 'stop' }] }])
+  }
+  const context: ConversationContext = { turns: [] }
+  const options = { temperature: 0, topP: 0.8 }
+  await streamFrom({ model: 'test', chatProvider: provider(fetch), context, options })
+  await streamFrom({ model: 'test', chatProvider: { chat: model => ({ model, baseURL: 'https://example.test/v1/', fetch }) }, context, options })
+  expect(requests).toHaveLength(2)
+  expect(requests[0]).toMatchObject({ temperature: 0, top_p: 0.8 })
+  expect(requests[1]).toMatchObject({ temperature: 0, top_p: 0.8 })
+})

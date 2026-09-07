@@ -24,6 +24,8 @@ export function streamChatCompletions(input: {
   const result = streamText({
     ...input.config,
     abortSignal: input.options?.abortSignal,
+    temperature: input.options?.temperature,
+    topP: input.options?.topP,
     messages,
     headers: { ...Object.fromEntries(new Headers(input.config.headers)), ...input.options?.headers },
     streamOptions: { includeUsage: true },
