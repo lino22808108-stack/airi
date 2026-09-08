@@ -1,5 +1,5 @@
 import type { ConversationContext, ConversationMessage, StreamOptions } from '@proj-airi/core-agent'
-import type { ChatProvider } from '@xsai-ext/providers/utils'
+import type { GenerationProvider } from '@proj-airi/provider-inference'
 import type { Tool } from '@xsai/shared-chat'
 import type { SyncedPiniaRuntime } from 'pinia-plugin-synced'
 
@@ -232,9 +232,9 @@ vi.mock('./modules/web-search', () => ({
   useWebSearchStore: () => ({}),
 }))
 
-const provider = {
-  chat: () => ({ baseURL: 'https://example.com/' }),
-} as unknown as ChatProvider
+const provider: GenerationProvider = {
+  generation: model => ({ protocol: 'chat-completions', config: { model, baseURL: 'https://example.com/' } }),
+}
 
 describe('chat store contract', () => {
   beforeEach(() => {
@@ -288,7 +288,7 @@ describe('chat store contract', () => {
 
   it('resolves the provider and rebuilds prior tools inside the serializable send action', async () => {
     const resolvedToolNames: string[][] = []
-    llmStreamMock.mockImplementation(async (_model: string, _chatProvider: ChatProvider, _messages: ConversationContext, options: any) => {
+    llmStreamMock.mockImplementation(async (_model: string, _chatProvider: GenerationProvider, _messages: ConversationContext, options: any) => {
       const tools = typeof options.tools === 'function' ? await options.tools() : options.tools
       resolvedToolNames.push(tools.map((tool: Tool) => tool.function.name))
       await options.onStreamEvent({ type: 'text-delta', text: 'ok' })
@@ -364,7 +364,7 @@ describe('chat store contract', () => {
   it('passes the current consciousness reasoning option to the chat provider', async () => {
     const settings = useConsciousnessSettingsStore()
     await settings.setReasoning(true)
-    llmStreamMock.mockImplementationOnce(async (_model: string, _chatProvider: ChatProvider, _messages: ConversationContext, options: StreamOptions) => {
+    llmStreamMock.mockImplementationOnce(async (_model: string, _chatProvider: GenerationProvider, _messages: ConversationContext, options: StreamOptions) => {
       await options.onStreamEvent?.({ type: 'finish' })
     })
 
@@ -389,7 +389,7 @@ describe('chat store contract', () => {
       ]
       return true
     })
-    llmStreamMock.mockImplementationOnce(async (_model: string, _chatProvider: ChatProvider, _messages: ConversationContext, options: any) => {
+    llmStreamMock.mockImplementationOnce(async (_model: string, _chatProvider: GenerationProvider, _messages: ConversationContext, options: any) => {
       await options.onStreamEvent({ type: 'finish' })
     })
 
@@ -421,7 +421,7 @@ describe('chat store contract', () => {
   })
 
   it('forwards one correlation identity across the action and result events', async () => {
-    llmStreamMock.mockImplementation(async (_model: string, _chatProvider: ChatProvider, _messages: ConversationContext, options: any) => {
+    llmStreamMock.mockImplementation(async (_model: string, _chatProvider: GenerationProvider, _messages: ConversationContext, options: any) => {
       await options.onStreamEvent({ type: 'text-delta', text: 'ok' })
       await options.onStreamEvent({ type: 'finish' })
     })
@@ -448,7 +448,7 @@ describe('chat store contract', () => {
   })
 
   it('captures custom-provider usage once and leaves official generation capture to the server', async () => {
-    llmStreamMock.mockImplementation(async (_model: string, _chatProvider: ChatProvider, _messages: ConversationContext, options: any) => {
+    llmStreamMock.mockImplementation(async (_model: string, _chatProvider: GenerationProvider, _messages: ConversationContext, options: any) => {
       await options.onStreamEvent({ type: 'text-delta', text: 'ok' })
       await options.onStreamEvent({ type: 'finish' })
       await options.onUsage({
@@ -494,7 +494,7 @@ describe('chat store contract', () => {
 
   it('uses turn_index on message_sent instead of a second-turn alias', async () => {
     activeProviderRef.value = 'official-provider'
-    llmStreamMock.mockImplementation(async (_model: string, _chatProvider: ChatProvider, _messages: ConversationContext, options: any) => {
+    llmStreamMock.mockImplementation(async (_model: string, _chatProvider: GenerationProvider, _messages: ConversationContext, options: any) => {
       await options.onStreamEvent({ type: 'text-delta', text: 'ok' })
       await options.onStreamEvent({ type: 'finish' })
     })
@@ -525,7 +525,7 @@ describe('chat store contract', () => {
   // and four generic aliases, multiplying PostHog volume without adding a
   // distinct product decision.
   it('does not emit redundant generic chat aliases for a successful send', async () => {
-    llmStreamMock.mockImplementation(async (_model: string, _chatProvider: ChatProvider, _messages: ConversationContext, options: any) => {
+    llmStreamMock.mockImplementation(async (_model: string, _chatProvider: GenerationProvider, _messages: ConversationContext, options: any) => {
       await options.onStreamEvent({ type: 'text-delta', text: 'ok' })
       await options.onStreamEvent({ type: 'finish' })
     })
@@ -543,7 +543,7 @@ describe('chat store contract', () => {
   })
 
   it('forwards later-turn failures to the canonical round failure event', async () => {
-    llmStreamMock.mockImplementationOnce(async (_model: string, _chatProvider: ChatProvider, _messages: ConversationContext, options: any) => {
+    llmStreamMock.mockImplementationOnce(async (_model: string, _chatProvider: GenerationProvider, _messages: ConversationContext, options: any) => {
       await options.onStreamEvent({ type: 'text-delta', text: 'ok' })
       await options.onStreamEvent({ type: 'finish' })
     })
@@ -589,7 +589,7 @@ describe('chat store contract', () => {
     getContextsSnapshotMock.mockReturnValue(contextsSnapshot)
 
     let composedMessages: ConversationMessage[] = []
-    llmStreamMock.mockImplementation(async (_model: string, _chatProvider: ChatProvider, context: ConversationContext, options: any) => {
+    llmStreamMock.mockImplementation(async (_model: string, _chatProvider: GenerationProvider, context: ConversationContext, options: any) => {
       composedMessages = context.turns.flatMap(turn => turn.messages)
       expect(options.waitForTools).toBe(true)
       expect(options.captureToolErrors).toBeUndefined()
@@ -800,7 +800,7 @@ describe('chat store contract', () => {
       'system:airi-runtime-prompt': [runtimePromptContext],
       'system:minecraft': [minecraftContext],
     })
-    llmStreamMock.mockImplementation(async (_model: string, _chatProvider: ChatProvider, context: ConversationContext, options: any) => {
+    llmStreamMock.mockImplementation(async (_model: string, _chatProvider: GenerationProvider, context: ConversationContext, options: any) => {
       composedMessages = context.turns.flatMap(turn => turn.messages)
       await options.onStreamEvent({ type: 'text-delta', text: 'minecraft reply' })
       await options.onStreamEvent({ type: 'finish' })
@@ -1007,7 +1007,7 @@ describe('chat store contract', () => {
   it('uses the forked session id and keeps the chat store contract keys', async () => {
     getContextsSnapshotMock.mockReturnValue({})
     forkSessionMock.mockResolvedValue('session-forked')
-    llmStreamMock.mockImplementation(async (_model: string, _chatProvider: ChatProvider, _messages: ConversationContext, options: any) => {
+    llmStreamMock.mockImplementation(async (_model: string, _chatProvider: GenerationProvider, _messages: ConversationContext, options: any) => {
       await options.onStreamEvent({ type: 'text-delta', text: 'fork-reply' })
       await options.onStreamEvent({ type: 'finish' })
     })
