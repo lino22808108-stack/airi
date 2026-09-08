@@ -12,6 +12,8 @@ import { createMemoryHistory, createRouter } from 'vue-router'
 import CharacterSwitcherDrawer from './character-switcher-drawer.vue'
 
 import { useAiriCardStore } from '../../stores/modules/airi-card'
+import { useConsciousnessStore } from '../../stores/modules/consciousness'
+import { useSpeechStore } from '../../stores/modules/speech'
 
 import '@unocss/reset/tailwind.css'
 import 'virtual:uno.css'
@@ -47,7 +49,15 @@ async function mountSwitcher(name = 'ReLU') {
   const screen = await render(defineComponent({
     components: { CharacterSwitcherDrawer },
     setup() {
-      void useAiriCardStore().initialize()
+      // ROOT CAUSE:
+      //
+      // App startup creates these i18n-dependent module stores during setup.
+      // This test initialized the card store alone, so its async continuation
+      // created them after setup and Vue I18n rejected useI18n.
+      //
+      // Match the app lifecycle by creating the dependencies before initialize.
+      useConsciousnessStore()
+      useSpeechStore()
     },
     template: '<header style="display:flex;width:100%"><span style="width:44px;flex-shrink:0" /><CharacterSwitcherDrawer /><span style="width:44px;flex-shrink:0" /></header>',
   }), {
@@ -61,7 +71,9 @@ async function mountSwitcher(name = 'ReLU') {
       })],
     },
   })
-  return { screen, router, store: useAiriCardStore(pinia) }
+  const store = useAiriCardStore(pinia)
+  await store.initialize()
+  return { screen, router, store }
 }
 
 it('selects a character through the real store and opens character management', async () => {

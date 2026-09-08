@@ -30,6 +30,8 @@ const recordLifecycleMock = vi.fn()
 
 const activeProviderRef = ref<string | null>(null)
 const activeModelRef = ref<string | null>(null)
+const activeTemperatureRef = ref(0.7)
+const activeTopPRef = ref(1)
 
 const beforeComposeHooks: HookCallback[] = []
 const afterComposeHooks: HookCallback[] = []
@@ -262,6 +264,8 @@ vi.mock('../../modules/consciousness', () => ({
   useConsciousnessStore: () => ({
     activeProvider: activeProviderRef,
     activeModel: activeModelRef,
+    activeTemperature: activeTemperatureRef,
+    activeTopP: activeTopPRef,
     getChatProviderInstance: getProviderInstanceMock,
   }),
 }))
@@ -308,6 +312,8 @@ describe('context bridge contract', () => {
 
     activeProviderRef.value = null
     activeModelRef.value = null
+    activeTemperatureRef.value = 0.7
+    activeTopPRef.value = 1
     activeSessionIdRef.value = 'session-1'
     chatOrchestratorMock.activeSendSessionId = undefined
     currentGeneration = 7
@@ -436,6 +442,8 @@ describe('context bridge contract', () => {
       }),
     }))
     expect(chatOrchestratorMock.ingest).toHaveBeenCalledTimes(1)
+    expect(chatOrchestratorMock.ingest.mock.calls[0]?.[1]?.temperature).toBe(0.7)
+    expect(chatOrchestratorMock.ingest.mock.calls[0]?.[1]?.topP).toBe(1)
     expect(chatOrchestratorMock.ingest.mock.calls[0]?.[1]?.input?.data.contextUpdates).toEqual([
       expect.objectContaining({
         contextId: expect.any(String),
