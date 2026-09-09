@@ -1,27 +1,35 @@
 import type { ChatProvider } from '@xsai-ext/providers/utils'
 import type { Tool } from '@xsai/shared-chat'
 
-import type { ConversationContext, ConversationTurn } from '../messages/types'
+import type { Conversation } from '../messages/types'
 import type { StreamEvent, StreamOptions } from '../types/llm'
 
 import { stepCountAtLeast } from '@xsai/shared-chat'
 import { streamText } from '@xsai/stream-text'
 
-import { readChatMessages, renderChatContext } from '../messages/chat-completions'
+import { readChatEntries, renderChatMessages } from '../messages/chat-completions'
+import { createAssistantTurn, recordRound } from './generation'
 import { toAiriStreamEvent } from './xsai-events'
 
 /** Projects one context snapshot and returns only the newly generated turn. */
 export function streamChatCompletions(input: {
   config: ReturnType<ChatProvider['chat']>
   scope: string
-  context: ConversationContext
+  conversation: Conversation
   supportsContentArray: boolean
   options?: StreamOptions
   tools?: Tool[]
   onEvent: (event: StreamEvent) => Promise<void>
 }) {
-  const messages = renderChatContext(input.context, input.supportsContentArray, input.scope)
+  const messages = renderChatMessages(input.conversation, input.supportsContentArray, input.scope)
+  const turn = createAssistantTurn(input.options?.requestCorrelation?.turnId, input.options?.requestCorrelation?.runId)
+  const starts: number[] = []
   const result = streamText({
+    prepareStep: ({ input: current }) => {
+      // SDK callbacks receive snapshots. Retain offsets, not references to those snapshots.
+      starts.push(current.length)
+      return {}
+    },
     ...input.config,
     abortSignal: input.options?.abortSignal,
     temperature: input.options?.temperature,
@@ -38,11 +46,18 @@ export function streamChatCompletions(input: {
         await input.onEvent(mapped)
     },
   })
-  const transcript = result.messages.then((final): ConversationTurn => {
-    const output = final.slice(messages.length)
-    if (!output.length)
-      return { messages: [] }
-    return { messages: readChatMessages(output), continuation: { protocol: 'chat-completions', scope: input.scope, data: output } }
+  const transcript = Promise.all([result.messages, result.steps]).then(([final, steps]) => {
+    for (const [index, step] of steps.entries()) {
+      const start = starts[index]
+      if (start === undefined)
+        throw new Error('Missing SDK model step boundary')
+      const output = final.slice(start, starts[index + 1] ?? final.length)
+      recordRound(turn, { protocol: 'chat-completions', scope: input.scope, data: output }, step, input.config.model, item => readChatEntries([item]))
+    }
+    const lastStep = steps.at(-1)
+    if ((lastStep?.finishReason === 'tool-calls' || lastStep?.finishReason === 'tool_calls') && lastStep.toolCalls.length > 0 && lastStep.toolResults.length === 0)
+      throw new Error('Generation tool step limit reached')
+    return turn
   })
   return { ...result, transcript }
 }

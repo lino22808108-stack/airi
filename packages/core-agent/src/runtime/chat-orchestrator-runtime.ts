@@ -4,13 +4,13 @@ import type { CommonContentPart, Message, ToolMessage } from '@xsai/shared-chat'
 import type { AgentContextPort } from '../contracts/context-port'
 import type { AgentLLMPort } from '../contracts/llm-port'
 import type { AgentForegroundStreamPort } from '../contracts/stream-port'
-import type { ConversationContext, ConversationTurn } from '../messages/types'
+import type { AssistantTurn, Conversation, Turn } from '../messages/types'
 import type { ChatHistoryItem, ChatSlices, ChatStreamEventContext, ChatToolReference, ContextMessage, StreamingAssistantMessage } from '../types/chat'
 import type { LlmUsage, StreamEvent, StreamOptions } from '../types/llm'
 
 import { createQueue } from '@proj-airi/stream-kit'
 
-import { readChatMessages } from '../messages/chat-completions'
+import { readChatTurns } from '../messages/chat-completions'
 import { formatTimePrefix } from '../messages/datetime-prefix'
 import { renderConversationPreview } from '../messages/preview'
 import { createChatHooks } from './agent-hooks'
@@ -432,20 +432,15 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     return fallbackCreatedAt
   }
 
-  function buildContext(history: ChatHistoryItem[]): ConversationContext {
+  function buildContext(history: ChatHistoryItem[]): Conversation {
     const nowTs = now()
-    const turns = history.map((message): ConversationTurn => {
+    const turns = history.flatMap((message, historyIndex): Turn[] => {
       if (message.role === 'assistant' && message.generationTranscript)
-        return structuredClone(unwrapMessage(message.generationTranscript))
+        return [structuredClone(unwrapMessage(message.generationTranscript))]
       const source = message.role === 'user'
         ? prependTextToContent(unwrapMessage(message), formatTimePrefix(getStablePromptTimestamp(message, nowTs)))
         : unwrapMessage(message)
-      // The existing session store uses Chat-shaped records. Decode them at
-      // this storage boundary; request adapters consume only portable context.
-      const messages = readChatMessages(source.role === 'assistant' && source.providerTranscript?.length ? source.providerTranscript : [source])
-      for (const [index, entry] of messages.entries())
-        entry.id = `${message.id ?? 'history'}-${index}`
-      return { messages }
+      return readChatTurns(source.role === 'assistant' && source.providerTranscript?.length ? source.providerTranscript : [source], message.id ?? `history-${historyIndex}`)
     })
     return { turns }
   }
@@ -678,19 +673,19 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       const context = buildContext(sessionMessagesForSend)
       const systemPromptSupplement = deps.getSystemPromptSupplement?.()?.trim()
       if (systemPromptSupplement) {
-        const systemMessage = context.turns.flatMap(turn => turn.messages).find(message => message.role === 'system')
-        if (systemMessage?.role === 'system')
-          systemMessage.segments.push({ type: 'text', text: `\n\n${systemPromptSupplement}` })
+        const systemMessage = context.turns.find(turn => turn.type === 'system' && turn.authority === 'system')
+        if (systemMessage?.type === 'system')
+          systemMessage.content.push({ type: 'text', text: `\n\n${systemPromptSupplement}` })
         else
-          context.turns.unshift({ messages: [{ id: 'system-supplement', role: 'system', segments: [{ type: 'text', text: systemPromptSupplement }] }] })
+          context.turns.unshift({ id: 'system-supplement', type: 'system', authority: 'system', content: [{ type: 'text', text: systemPromptSupplement }] })
       }
 
       const contextsSnapshot = deps.context.snapshot()
       const entries = Object.entries(contextsSnapshot).flatMap(([source, messages]) => messages.map(message => ({ source, text: message.text })))
       if (entries.length) {
-        const lastMessage = context.turns.at(-1)?.messages.at(-1)
-        if (lastMessage?.role === 'user')
-          lastMessage.segments.push({ type: 'runtime-context', entries })
+        const lastMessage = context.turns.at(-1)
+        if (lastMessage?.type === 'user')
+          lastMessage.content.push({ type: 'runtime-context', entries })
         deps.onLifecycle?.({ phase: 'prompt-context-built', channel: 'chat', sessionId, details: { contexts: contextsSnapshot } })
       }
 
@@ -723,7 +718,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       const llmRequestStartedAt = monotonicNow()
       let llmFirstTokenEmitted = false
       let generationUsage: LlmUsage = { source: 'unavailable' }
-      let generationTranscript: ConversationTurn | undefined
+      let generationTranscript: AssistantTurn | undefined
       deps.onLlmRequestStarted?.({
         ...correlation,
         model: options.model,
@@ -738,7 +733,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         onTranscript: (transcript) => { generationTranscript = structuredClone(transcript) },
         requestCorrelation: {
           conversationId: correlation.conversationId,
-          roundId: correlation.roundId,
+          turnId: correlation.roundId,
         },
         tools: options.tools,
         temperature: options.temperature,
@@ -850,7 +845,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         latencyMs: Math.round(monotonicNow() - llmRequestStartedAt),
       })
 
-      if (!shouldAbort() && (buildingMessage.slices.length > 0 || generationTranscript?.continuation || generationTranscript?.messages.length)) {
+      if (!shouldAbort() && (buildingMessage.slices.length > 0 || generationTranscript?.rounds.length)) {
         const finalAssistant = buildingMessage
         deps.session.appendSessionMessage(sessionId, finalAssistant)
         deps.onAssistantMessageAppended?.({
