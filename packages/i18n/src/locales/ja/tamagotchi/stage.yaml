@@ -36,7 +36,7 @@ docs:
     start: 画面を共有
     stop: 画面共有を停止
     pick: 画面を選択
-    pick-hint: ディスプレイまたはウィンドウを選ぶ。オフにするまで彼女が見ます。
+    pick-hint: ディスプレイまたはウィンドウを選ぶ。設定 → Vision の間隔でライブ視聴します。
     displays: ディスプレイ
     windows: ウィンドウ
     empty: 共有できるものがありません

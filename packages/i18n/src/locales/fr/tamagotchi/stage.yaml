@@ -36,7 +36,7 @@ docs:
     start: Partager l'écran
     stop: Arrêter le partage
     pick: Choisir un écran
-    pick-hint: Choisis un écran ou une fenêtre. Elle le verra jusqu'à ce que tu l'éteignes.
+    pick-hint: Choisis un écran ou une fenêtre. Elle le regarde en direct, intervalle de Réglages → Vision.
     displays: Écrans
     windows: Fenêtres
     empty: Rien à partager

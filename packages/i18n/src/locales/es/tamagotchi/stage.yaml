@@ -36,7 +36,7 @@ docs:
     start: Compartir pantalla
     stop: Detener pantalla
     pick: Elige una pantalla
-    pick-hint: Elige un monitor o una ventana. Lo verá hasta que lo apagues.
+    pick-hint: Elige un monitor o una ventana. Lo verá en vivo con el intervalo de Ajustes → Visión.
     displays: Pantallas
     windows: Ventanas
     empty: Nada para compartir

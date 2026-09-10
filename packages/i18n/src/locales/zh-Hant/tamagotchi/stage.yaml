@@ -36,7 +36,7 @@ docs:
     start: 共享螢幕
     stop: 停止共享螢幕
     pick: 選擇螢幕
-    pick-hint: 選擇顯示器或視窗。關閉前她會一直看見。
+    pick-hint: 選擇顯示器或視窗。她會依「設定 → 視覺」的間隔即時觀看。
     displays: 顯示器
     windows: 視窗
     empty: 沒有可共享的內容

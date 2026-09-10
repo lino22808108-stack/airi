@@ -36,7 +36,7 @@ docs:
     start: 화면 공유
     stop: 화면 공유 중지
     pick: 화면 선택
-    pick-hint: 디스플레이 또는 창을 고르세요. 끌 때까지 그녀가 봅니다.
+    pick-hint: 디스플레이 또는 창을 고르세요. 설정 → Vision 간격으로 실시간 시청합니다.
     displays: 디스플레이
     windows: 창
     empty: 공유할 항목이 없습니다

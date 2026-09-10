@@ -36,7 +36,7 @@ docs:
     start: Share screen
     stop: Stop screen share
     pick: Choose a screen
-    pick-hint: Pick a display or window. She will see it until you turn this off.
+    pick-hint: Pick a display or window. She watches it live using the capture interval from Settings → Vision.
     displays: Displays
     windows: Windows
     empty: Nothing to share

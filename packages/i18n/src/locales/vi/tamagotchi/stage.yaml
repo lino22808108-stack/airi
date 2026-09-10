@@ -36,7 +36,7 @@ docs:
     start: Chia sẻ màn hình
     stop: Dừng chia sẻ màn hình
     pick: Chọn màn hình
-    pick-hint: Chọn màn hình hoặc cửa sổ. Cô ấy sẽ thấy cho đến khi bạn tắt.
+    pick-hint: Chọn màn hình hoặc cửa sổ. Cô ấy xem trực tiếp theo khoảng thời gian ở Cài đặt → Vision.
     displays: Màn hình
     windows: Cửa sổ
     empty: Không có gì để chia sẻ

@@ -69,6 +69,8 @@ vi.mock('../../../composables/use-stage-screen-stream', async () => {
       stopCapture: vi.fn(),
       openPicker: vi.fn(),
       closePicker: vi.fn(),
+      bindVideoElement: vi.fn(),
+      cleanupSession: vi.fn(),
     }),
   }
 })

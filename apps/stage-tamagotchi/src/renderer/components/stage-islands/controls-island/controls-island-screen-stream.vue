@@ -24,7 +24,6 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 const {
-  videoRef,
   pickerOpen,
   starting,
   errorMessage,
@@ -79,7 +78,12 @@ async function handleClick() {
 }
 
 async function handlePick(sourceId: string) {
-  await startCapture(sourceId)
+  try {
+    await startCapture(sourceId)
+  }
+  catch {
+    // errorMessage is already set by the store
+  }
 }
 
 function onPickerOpenChange(open: boolean) {
@@ -110,14 +114,6 @@ function onPickerOpenChange(open: boolean) {
       {{ ariaLabel }}
     </template>
   </ControlButtonTooltip>
-
-  <video
-    ref="videoRef"
-    autoplay
-    muted
-    playsinline
-    class="pointer-events-none fixed size-px overflow-hidden opacity-0"
-  />
 
   <DialogRoot :open="pickerOpen" @update:open="onPickerOpenChange">
     <DialogPortal>
@@ -183,7 +179,7 @@ function onPickerOpenChange(open: boolean) {
               v-for="source in filteredSources"
               :key="source.id"
               type="button"
-              :disabled="starting"
+              :disabled="starting || !configured"
               :class="[
                 'flex flex-col gap-1.5 rounded-xl p-2 text-left',
                 'border border-transparent bg-white/60 dark:bg-neutral-800/50',

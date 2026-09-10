@@ -37,6 +37,7 @@ import { toast } from 'vue-sonner'
 import ControlsIslandRoot from '../components/stage-islands/controls-island/controls-island-root.vue'
 import ControlsIsland from '../components/stage-islands/controls-island/index.vue'
 import ResourceStatusIsland from '../components/stage-islands/resource-status-island/index.vue'
+import StageScreenStreamHost from '../components/stage-screen-stream-host.vue'
 
 import { electronOpenOnboarding } from '../../shared/eventa'
 import { useModelSettingsRuntimeOwner } from '../composables/model-settings-runtime-owner'
@@ -783,6 +784,7 @@ const cursorPosition = computed(() => ({
     relative z-2 h-full overflow-hidden rounded-xl
     transition="opacity duration-500 ease-in-out"
   >
+    <StageScreenStreamHost />
     <!-- Stage is always in DOM so TresCanvas can measure dimensions -->
     <div
       :class="[
