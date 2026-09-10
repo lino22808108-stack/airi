@@ -46,6 +46,33 @@ vi.mock('@moeru/eventa', async importOriginal => ({
   defineInvoke: () => vi.fn(),
 }))
 
+vi.mock('../../../composables/use-stage-screen-stream', async () => {
+  const { computed, ref } = await import('vue')
+
+  return {
+    useStageScreenStream: () => ({
+      videoRef: ref(null),
+      pickerOpen: ref(false),
+      starting: ref(false),
+      errorMessage: ref(''),
+      sourceCategory: ref('displays'),
+      filteredSources: computed(() => []),
+      sourceCounts: computed(() => ({ displays: 0, windows: 0 })),
+      activeSource: computed(() => null),
+      activeStream: ref(null),
+      isRefetching: ref(false),
+      hasFetchedOnce: ref(false),
+      isStreaming: computed(() => false),
+      configured: computed(() => false),
+      refetchSources: vi.fn(),
+      startCapture: vi.fn(),
+      stopCapture: vi.fn(),
+      openPicker: vi.fn(),
+      closePicker: vi.fn(),
+    }),
+  }
+})
+
 vi.mock('@proj-airi/stage-ui/stores/auth', async () => {
   const { ref } = await import('vue')
   authState.credits = ref(0)
@@ -371,6 +398,13 @@ describe('controls Island overflow', () => {
     expect(screen.getByTestId('controls-menu').element()).toBeInTheDocument()
     window.dispatchEvent(new MouseEvent('mouseup'))
     await expect.poll(() => screen.getByTestId('controls-menu').element().closest('[aria-hidden]')?.getAttribute('aria-hidden'), { timeout: 3500 }).toBe('true')
+  })
+
+  it('renders the screen-share button as the ninth expanded control', async () => {
+    const { i18n, screen } = mountControlsIsland('bottom-right')
+    const label = (key: string) => i18n.global.t(`tamagotchi.stage.controls-island.${key}`)
+    await screen.getByLabelText(label('expand'), { exact: true }).click()
+    await expect.poll(() => screen.getByLabelText(label('screen-stream.start'), { exact: true }).element()).toBeTruthy()
   })
 })
 

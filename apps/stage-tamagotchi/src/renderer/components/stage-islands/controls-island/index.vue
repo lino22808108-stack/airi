@@ -16,6 +16,7 @@ import ControlsIslandAuthButton from './controls-island-auth-button.vue'
 import ControlsIslandFadeOnHover from './controls-island-fade-on-hover.vue'
 import ControlsIslandHearingConfig from './controls-island-hearing-config.vue'
 import ControlsIslandProfilePicker from './controls-island-profile-picker.vue'
+import ControlsIslandScreenStream from './controls-island-screen-stream.vue'
 import ControlsIslandStopSpeaking from './controls-island-stop-speaking.vue'
 import IndicatorMicVolume from './indicator-mic-volume.vue'
 
@@ -400,6 +401,12 @@ function resetMainWindowPosition() {
                       {{ t('tamagotchi.stage.controls-island.close') }}
                     </template>
                   </ControlButtonTooltip>
+
+                  <ControlsIslandScreenStream
+                    :icon-class="adjustStyleClasses.icon"
+                    :button-style="adjustStyleClasses.button"
+                    @interaction-change="setOverlay('screen-stream', $event)"
+                  />
                 </div>
               </div>
             </div>

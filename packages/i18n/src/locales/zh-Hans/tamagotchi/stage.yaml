@@ -32,6 +32,16 @@ docs:
   'logging-in': 登录中...
   'account': 账号
   'logout': 退出登录
+  'screen-stream':
+    start: 共享屏幕
+    stop: 停止共享屏幕
+    pick: 选择屏幕
+    pick-hint: 选择显示器或窗口。关闭前她会一直看见。
+    displays: 显示器
+    windows: 窗口
+    empty: 没有可共享的内容
+    loading: 加载中...
+    vision-unconfigured: 请先在 设置 → 模块 → 视觉 中配置视觉模型，她才能理解屏幕。
 widgets:
   close: 关闭小部件
   empty:

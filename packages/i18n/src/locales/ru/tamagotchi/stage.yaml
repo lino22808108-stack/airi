@@ -32,6 +32,16 @@ docs:
   'logging-in': Выполняется вход...
   'account': Аккаунт
   'logout': Выйти
+  'screen-stream':
+    start: Показать экран
+    stop: Остановить показ экрана
+    pick: Выбери экран
+    pick-hint: Выбери монитор или окно. Она будет видеть его, пока не выключишь.
+    displays: Экраны
+    windows: Окна
+    empty: Нечего шарить
+    loading: Загрузка...
+    vision-unconfigured: Сначала выбери vision-модель в Настройки → Модули → Vision, чтобы она понимала экран.
 widgets:
   close: Закрыть виджет
   empty:

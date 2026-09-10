@@ -32,6 +32,16 @@ docs:
   'logging-in': Signing in...
   'account': Account
   'logout': Sign out
+  'screen-stream':
+    start: Share screen
+    stop: Stop screen share
+    pick: Choose a screen
+    pick-hint: Pick a display or window. She will see it until you turn this off.
+    displays: Displays
+    windows: Windows
+    empty: Nothing to share
+    loading: Loading...
+    vision-unconfigured: Set a vision model in Settings → Modules → Vision so she can understand the screen.
 
 widgets:
   close: Close widget

@@ -32,6 +32,16 @@ docs:
   'logging-in': Đang đăng nhập...
   'account': Tài khoản
   'logout': Đăng xuất
+  'screen-stream':
+    start: Chia sẻ màn hình
+    stop: Dừng chia sẻ màn hình
+    pick: Chọn màn hình
+    pick-hint: Chọn màn hình hoặc cửa sổ. Cô ấy sẽ thấy cho đến khi bạn tắt.
+    displays: Màn hình
+    windows: Cửa sổ
+    empty: Không có gì để chia sẻ
+    loading: Đang tải...
+    vision-unconfigured: Hãy đặt mô hình vision trong Cài đặt → Modules → Vision để cô ấy hiểu màn hình.
 widgets:
   close: Đóng tiện ích
   empty:

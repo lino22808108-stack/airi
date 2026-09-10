@@ -32,6 +32,16 @@ docs:
   'logging-in': Connexion en cours...
   'account': Compte
   'logout': Compte
+  'screen-stream':
+    start: Partager l'écran
+    stop: Arrêter le partage
+    pick: Choisir un écran
+    pick-hint: Choisis un écran ou une fenêtre. Elle le verra jusqu'à ce que tu l'éteignes.
+    displays: Écrans
+    windows: Fenêtres
+    empty: Rien à partager
+    loading: Chargement...
+    vision-unconfigured: Configure un modèle vision dans Paramètres → Modules → Vision pour qu'elle comprenne l'écran.
 widgets:
   close: Fermer le widget
   empty:

@@ -32,6 +32,16 @@ docs:
   'logging-in': サインイン中…
   'account': アカウント
   'logout': サインアウト
+  'screen-stream':
+    start: 画面を共有
+    stop: 画面共有を停止
+    pick: 画面を選択
+    pick-hint: ディスプレイまたはウィンドウを選ぶ。オフにするまで彼女が見ます。
+    displays: ディスプレイ
+    windows: ウィンドウ
+    empty: 共有できるものがありません
+    loading: 読み込み中...
+    vision-unconfigured: 設定 → モジュール → Vision で視覚モデルを設定すると、画面を理解できます。
 widgets:
   close: Close widget
   empty:

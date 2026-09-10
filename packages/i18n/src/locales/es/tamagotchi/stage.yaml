@@ -32,6 +32,16 @@ docs:
   'logging-in': Iniciando sesión...
   'account': Cuenta
   'logout': Cerrar sesión
+  'screen-stream':
+    start: Compartir pantalla
+    stop: Detener pantalla
+    pick: Elige una pantalla
+    pick-hint: Elige un monitor o una ventana. Lo verá hasta que lo apagues.
+    displays: Pantallas
+    windows: Ventanas
+    empty: Nada para compartir
+    loading: Cargando...
+    vision-unconfigured: Configura un modelo de visión en Ajustes → Módulos → Vision para que entienda la pantalla.
 widgets:
   close: Cerrar widget
   empty:
