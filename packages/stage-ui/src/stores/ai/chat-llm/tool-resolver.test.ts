@@ -100,7 +100,13 @@ describe('resolveLlmTools', () => {
     })
 
     it('omits web_search when the web-search module is not configured', async () => {
-      useWebSearchStoreMock.mockReturnValue({ configured: false, apiKey: '' })
+      useWebSearchStoreMock.mockReturnValue({
+        configured: false,
+        apiKey: '',
+        braveApiKey: '',
+        serperApiKey: '',
+        providerMode: 'auto',
+      })
       const builtInTool = createTool('built_in_tool')
 
       // webSearchTools is intentionally omitted so resolveWebSearchTools falls
@@ -116,12 +122,16 @@ describe('resolveLlmTools', () => {
       expect(createWebSearchToolsMock).not.toHaveBeenCalled()
     })
 
-    it('mounts web_search with a trimmed key when the module is configured', async () => {
+    it('mounts web_search with trimmed keys when the module is configured', async () => {
       const webSearchTool = createTool('web_search')
       createWebSearchToolsMock.mockResolvedValue([webSearchTool])
-      // A key pasted with surrounding whitespace still reads as configured, so
-      // the resolver must trim it before handing it to the factory.
-      useWebSearchStoreMock.mockReturnValue({ configured: true, apiKey: '  tvly-key\n' })
+      useWebSearchStoreMock.mockReturnValue({
+        configured: true,
+        apiKey: '  tvly-key\n',
+        braveApiKey: '  brave-key  ',
+        serperApiKey: '',
+        providerMode: 'auto',
+      })
       const builtInTool = createTool('built_in_tool')
 
       const tools = await resolveLlmTools({
@@ -131,7 +141,12 @@ describe('resolveLlmTools', () => {
         activeTools: [],
       })
 
-      expect(createWebSearchToolsMock).toHaveBeenCalledWith({ apiKey: 'tvly-key' })
+      expect(createWebSearchToolsMock).toHaveBeenCalledWith({
+        mode: 'auto',
+        tavilyApiKey: 'tvly-key',
+        braveApiKey: 'brave-key',
+        serperApiKey: '',
+      })
       expect(tools).toEqual([builtInTool, webSearchTool])
     })
   })

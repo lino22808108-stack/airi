@@ -754,8 +754,20 @@ pages:
       enable: Enable Web Search
       enable-description: Allow AIRI to search the web during chat
       api-key: Tavily API Key
-      api-key-description: Web search is powered by Tavily. Get a free API key at tavily.com.
-      api-key-placeholder: Enter your Tavily API key
+      api-key-description: Поиск через Tavily. Бесплатный ключ на tavily.com.
+      api-key-placeholder: Введите Tavily API ключ
+      provider: Провайдер поиска
+      provider-description: Авто переключается на следующего, если текущий не ответил, отвалился или закончились кредиты.
+      provider-auto: Авто
+      provider-tavily: Tavily
+      provider-brave: Brave
+      provider-serper: Serper
+      brave-api-key: Brave API Key
+      brave-api-key-description: Необязательно. Ключ на brave.com/search/api. В Авто — запасной после Tavily.
+      brave-api-key-placeholder: Введите Brave Search API ключ
+      serper-api-key: Serper API Key
+      serper-api-key-description: Необязательно. Ключ на serper.dev. В Авто — запасной, если предыдущие не ответили.
+      serper-api-key-placeholder: Введите Serper API ключ
       configured: Web search is ready to use!
     mcp-server:
       title: MCP Сервера

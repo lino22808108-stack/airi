@@ -756,6 +756,18 @@ pages:
       api-key: Tavily API Key
       api-key-description: Web search is powered by Tavily. Get a free API key at tavily.com.
       api-key-placeholder: Enter your Tavily API key
+      provider: Search provider
+      provider-description: Auto uses the next key if one fails, times out, or runs out of credits.
+      provider-auto: Auto
+      provider-tavily: Tavily
+      provider-brave: Brave
+      provider-serper: Serper
+      brave-api-key: Brave API Key
+      brave-api-key-description: Optional. Get a key at brave.com/search/api. Used in Auto when Tavily fails.
+      brave-api-key-placeholder: Enter your Brave Search API key
+      serper-api-key: Serper API Key
+      serper-api-key-description: Optional. Get a key at serper.dev. Used in Auto when earlier providers fail.
+      serper-api-key-placeholder: Enter your Serper API key
       configured: Web search is ready to use!
     mcp-server:
       title: Servidores MCP
