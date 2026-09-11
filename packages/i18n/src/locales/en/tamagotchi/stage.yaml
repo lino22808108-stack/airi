@@ -44,6 +44,8 @@ docs:
     vision-unconfigured: Set a chat model that can see images in Settings → Modules → Consciousness. The Vision tab is only stream settings.
     overlay-title: Screen
     overlay-changes: Scene changes {current}/{target}
+    overlay-hide: Hide frames
+    overlay-show: Show frames
 
 widgets:
   close: Close widget

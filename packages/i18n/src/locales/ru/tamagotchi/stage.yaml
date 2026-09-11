@@ -44,6 +44,8 @@ docs:
     vision-unconfigured: Сначала выбери чат-модель с картинками в Настройки → Модули → Сознание. Вкладка зрения — только настройки стрима.
     overlay-title: Экран
     overlay-changes: Смены сцены {current}/{target}
+    overlay-hide: Скрыть кадры
+    overlay-show: Показать кадры
 widgets:
   close: Закрыть виджет
   empty:
