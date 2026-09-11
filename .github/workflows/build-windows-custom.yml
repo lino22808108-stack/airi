@@ -61,8 +61,8 @@ jobs:
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: custom-providers-screen-stream-10
-          name: Screen stream 10 — TV in column, frames at feet (Windows)
+          tag_name: custom-providers-screen-stream-11
+          name: Screen stream 11 — frames only, no labels (Windows)
           prerelease: true
           make_latest: true
           files: |
@@ -71,12 +71,10 @@ jobs:
           body: |
             Полный Windows-установщик из CI (Godot + Electron), с живым стримом экрана.
 
-            **Что нового в 10**
-            - Телик снова в столбике, строго между микрофоном и динамиком. Исчезает только когда стрим выключен.
-            - Стрелка открывает меню вверх, даже со стримом.
-            - Кадры внизу по центру (у ног), островок справа не перекрывают.
+            **Что нового в 11**
+            - В окошке превью только сами экраны: заголовок «Смены / Экран сцены» убран.
 
-            Остальное как в 6: системный пузырь скрыт, кадры = N (макс. 9), сетка 3×3.
+            Остальное как в 10: телик в столбике между микро и динамиком, меню вверх, кадры внизу по центру.
 
             Если SmartScreen ругается: More info → Run anyway.
         env:

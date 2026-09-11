@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia'
 import { computed, onBeforeUnmount } from 'vue'
-import { useI18n } from 'vue-i18n'
 
 import {
   overlayColumnCount,
@@ -9,12 +8,10 @@ import {
   useStageScreenStreamStore,
 } from '../stores/stage-screen-stream'
 
-const { t } = useI18n()
 const store = useStageScreenStreamStore()
 const {
   isStreaming,
   previewFrames,
-  sceneChangesSinceComment,
   neededSceneChanges,
   overlayFramesVisible,
 } = storeToRefs(store)
@@ -34,7 +31,7 @@ const overlaySlots = computed(() => neededSceneChanges.value)
 const overlayColumns = computed(() => overlayColumnCount(overlaySlots.value))
 const overlayWidthRem = computed(() => overlayPanelWidthRem(overlaySlots.value))
 const overlayGap = computed(() => '0.25rem')
-const overlayPadding = computed(() => '0.35rem')
+const overlayPadding = computed(() => '0.3rem')
 const overlayBadgeClass = computed(() => overlaySlots.value >= 7
   ? 'px-1 py-px text-[9px] font-semibold text-white'
   : 'px-1.5 py-0.5 text-[10px] font-semibold text-white')
@@ -71,17 +68,6 @@ onBeforeUnmount(() => {
         padding: overlayPadding,
       }"
     >
-      <div class="mb-1 flex items-center justify-between gap-1 px-0.5">
-        <span class="text-[11px] font-medium text-neutral-600 dark:text-neutral-300">
-          {{ t('tamagotchi.stage.controls-island.screen-stream.overlay-title') }}
-        </span>
-        <span class="text-[11px] text-neutral-500 dark:text-neutral-400">
-          {{ t('tamagotchi.stage.controls-island.screen-stream.overlay-changes', {
-            current: sceneChangesSinceComment,
-            target: neededSceneChanges,
-          }) }}
-        </span>
-      </div>
       <div
         class="grid"
         :style="{
