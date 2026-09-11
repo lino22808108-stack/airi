@@ -29,11 +29,19 @@ const cleanup = vi.fn()
 const refetchSources = vi.fn(async () => {})
 
 const visionMocks = vi.hoisted(() => ({
-  processCapture: vi.fn(async () => ({ contextUpdates: 1, text: 'a desktop' })),
-  recordError: vi.fn(),
   ensureConnected: vi.fn(async () => {}),
   startTicker: vi.fn(),
   stopTicker: vi.fn(),
+}))
+
+const chatMocks = vi.hoisted(() => ({
+  send: vi.fn(async () => ({ messages: [], sessionId: 'session-1' })),
+  sending: false,
+  ensureCurrentSession: vi.fn(async () => 'session-1'),
+}))
+
+const fingerprintMocks = vi.hoisted(() => ({
+  next: new Uint8Array(24 * 24).fill(10),
 }))
 
 vi.mock('../composables/use-vision-screen-capture', () => ({
@@ -52,19 +60,22 @@ vi.mock('../composables/use-vision-screen-capture', () => ({
   }),
 }))
 
+vi.mock('./scene-fingerprint', async () => {
+  const actual = await vi.importActual<typeof import('./scene-fingerprint')>('./scene-fingerprint')
+  return {
+    ...actual,
+    computeFingerprintFromDataUrl: vi.fn(async () => fingerprintMocks.next.slice()),
+  }
+})
+
 vi.mock('@proj-airi/stage-ui/stores/modules/vision', async () => {
   const { defineStore } = await import('pinia')
-  const { computed: vueComputed, ref: vueRef } = await import('vue')
+  const { ref: vueRef } = await import('vue')
 
   return {
-    useVisionStore: defineStore('vision', () => {
-      const activeProvider = vueRef('openrouter')
-      const activeModel = vueRef('z-ai/glm-5.3-flash')
-      const configured = vueComputed(() => !!activeProvider.value && !!activeModel.value)
-      return { activeProvider, activeModel, configured }
-    }),
     useVisionProcessingStore: defineStore('vision-processing', () => {
       const isRunning = vueRef(false)
+      const commentAfterSceneChanges = vueRef(2)
       function startTicker(handler: unknown) {
         visionMocks.startTicker(handler)
         isRunning.value = true
@@ -73,14 +84,38 @@ vi.mock('@proj-airi/stage-ui/stores/modules/vision', async () => {
         visionMocks.stopTicker()
         isRunning.value = false
       }
-      return { isRunning, startTicker, stopTicker }
+      return { isRunning, commentAfterSceneChanges, startTicker, stopTicker }
     }),
-    useVisionOrchestratorStore: defineStore('vision-orchestrator', () => ({
-      processCapture: visionMocks.processCapture,
-      recordError: visionMocks.recordError,
-    })),
   }
 })
+
+vi.mock('@proj-airi/stage-ui/stores/modules/consciousness', async () => {
+  const { defineStore } = await import('pinia')
+  const { computed: vueComputed, ref: vueRef } = await import('vue')
+
+  return {
+    useConsciousnessStore: defineStore('consciousness', () => {
+      const activeProvider = vueRef('openrouter')
+      const activeModel = vueRef('z-ai/glm-5.3-flash')
+      const configured = vueComputed(() => !!activeProvider.value && !!activeModel.value)
+      return { activeProvider, activeModel, configured }
+    }),
+  }
+})
+
+vi.mock('@proj-airi/stage-ui/stores/chat', () => ({
+  useChatStore: () => ({
+    send: chatMocks.send,
+    sending: chatMocks.sending,
+  }),
+}))
+
+vi.mock('@proj-airi/stage-ui/stores/chat/session-store', () => ({
+  useChatSessionStore: () => ({
+    activeSessionId: 'session-1',
+    ensureCurrentSession: chatMocks.ensureCurrentSession,
+  }),
+}))
 
 vi.mock('@proj-airi/stage-ui/stores/mods/api/channel-server', () => ({
   useModsServerChannelStore: () => ({
@@ -98,11 +133,13 @@ describe('stage screen stream store', () => {
     stopStream.mockClear()
     captureFrame.mockClear()
     cleanup.mockClear()
-    visionMocks.processCapture.mockClear()
-    visionMocks.recordError.mockClear()
     visionMocks.ensureConnected.mockClear()
     visionMocks.startTicker.mockClear()
     visionMocks.stopTicker.mockClear()
+    chatMocks.send.mockClear()
+    chatMocks.ensureCurrentSession.mockClear()
+    chatMocks.sending = false
+    fingerprintMocks.next = new Uint8Array(24 * 24).fill(10)
   })
 
   function bindFakeVideo() {
@@ -122,7 +159,7 @@ describe('stage screen stream store', () => {
     } as unknown as HTMLVideoElement
   }
 
-  it('starts the existing vision ticker when a source is captured', async () => {
+  it('starts the live ticker when a source is captured', async () => {
     const { useStageScreenStreamStore } = await import('./stage-screen-stream')
     const { useVisionProcessingStore } = await import('@proj-airi/stage-ui/stores/modules/vision')
     const store = useStageScreenStreamStore()
@@ -139,21 +176,47 @@ describe('stage screen stream store', () => {
     expect(store.pickerOpen).toBe(false)
   })
 
-  it('does not start capture without a vision model', async () => {
+  it('does not start capture without a consciousness model', async () => {
     const { useStageScreenStreamStore } = await import('./stage-screen-stream')
-    const { useVisionStore, useVisionProcessingStore } = await import('@proj-airi/stage-ui/stores/modules/vision')
-    const visionStore = useVisionStore()
-    visionStore.activeProvider = ''
-    visionStore.activeModel = ''
+    const { useConsciousnessStore } = await import('@proj-airi/stage-ui/stores/modules/consciousness')
+    const { useVisionProcessingStore } = await import('@proj-airi/stage-ui/stores/modules/vision')
+    const consciousnessStore = useConsciousnessStore()
+    consciousnessStore.activeProvider = ''
+    consciousnessStore.activeModel = ''
 
     const store = useStageScreenStreamStore()
     const processing = useVisionProcessingStore()
     store.bindVideoElement(bindFakeVideo())
 
-    await expect(store.startCapture('screen:0:0')).rejects.toThrow('Vision model is not configured')
+    await expect(store.startCapture('screen:0:0')).rejects.toThrow('Consciousness model is not configured')
     expect(visionMocks.startTicker).not.toHaveBeenCalled()
     expect(processing.isRunning).toBe(false)
     expect(stopStream).toHaveBeenCalled()
+  })
+
+  it('comments through the chat model after N scene changes, with the last frames attached', async () => {
+    const { useStageScreenStreamStore } = await import('./stage-screen-stream')
+    const store = useStageScreenStreamStore()
+    store.bindVideoElement(bindFakeVideo())
+    await store.startCapture('screen:0:0')
+
+    fingerprintMocks.next = new Uint8Array(24 * 24).fill(10)
+    await store.ingestCapturedFrame('data:image/jpeg;base64,frame1')
+    expect(chatMocks.send).not.toHaveBeenCalled()
+
+    fingerprintMocks.next = new Uint8Array(24 * 24).fill(200)
+    await store.ingestCapturedFrame('data:image/jpeg;base64,frame2')
+
+    expect(chatMocks.send).toHaveBeenCalledTimes(1)
+    const payload = chatMocks.send.mock.calls[0][0]
+    expect(payload.sessionId).toBe('session-1')
+    expect(payload.attachments).toEqual([
+      { type: 'image', mimeType: 'image/jpeg', data: 'frame1' },
+      { type: 'image', mimeType: 'image/jpeg', data: 'frame2' },
+    ])
+    expect(payload.text).toContain('scene change')
+    expect(store.previewFrames).toHaveLength(2)
+    expect(store.sceneChangesSinceComment).toBe(0)
   })
 
   it('stopCapture tears down both the ticker and the live stream', async () => {
@@ -170,5 +233,6 @@ describe('stage screen stream store', () => {
     expect(processing.isRunning).toBe(false)
     expect(stopStream).toHaveBeenCalled()
     expect(store.isStreaming).toBe(false)
+    expect(store.previewFrames).toEqual([])
   })
 })

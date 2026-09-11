@@ -1,12 +1,20 @@
 import type { SourcesOptions } from 'electron'
 
 import { errorMessageFrom } from '@moeru/std'
-import { useVisionOrchestratorStore, useVisionProcessingStore, useVisionStore } from '@proj-airi/stage-ui/stores/modules/vision'
+import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
+import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
 import { useModsServerChannelStore } from '@proj-airi/stage-ui/stores/mods/api/channel-server'
+import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
+import { useVisionProcessingStore } from '@proj-airi/stage-ui/stores/modules/vision'
 import { defineStore, storeToRefs } from 'pinia'
 import { computed, ref, watch } from 'vue'
 
 import { useVisionScreenCapture } from '../composables/use-vision-screen-capture'
+import {
+  computeFingerprintFromDataUrl,
+  dataUrlToImageAttachment,
+  isSceneChange,
+} from './scene-fingerprint'
 
 type SourceCategory = 'displays' | 'windows'
 
@@ -18,6 +26,7 @@ const sourcesOptions: SourcesOptions = {
 const CAPTURE_MAX_WIDTH = 1280
 const CAPTURE_MAX_HEIGHT = 720
 const CAPTURE_JPEG_QUALITY = 0.82
+const PREVIEW_FRAME_LIMIT = 3
 
 function hasLiveVideoStream(stream: MediaStream | null | undefined) {
   if (!stream)
@@ -32,6 +41,22 @@ function scaleCaptureSize(width: number, height: number) {
     width: Math.max(1, Math.round(width * scale)),
     height: Math.max(1, Math.round(height * scale)),
   }
+}
+
+function clampCommentAfterChanges(value: number) {
+  if (!Number.isFinite(value))
+    return 3
+  return Math.min(10, Math.max(1, Math.round(value)))
+}
+
+function buildScreenCommentPrompt(sceneChanges: number, frameCount: number) {
+  return [
+    `[Screen] You are looking at ${frameCount} numbered frames of the user's screen.`,
+    'Frame 1 is the oldest, the last frame is the newest.',
+    `There have been ${sceneChanges} distinct scene change${sceneChanges === 1 ? '' : 's'} since your last comment.`,
+    'Comment in character, briefly, about what you see.',
+    'Do not mention screenshots, numbered frames, or that you are watching a stream unless asked.',
+  ].join(' ')
 }
 
 async function captureJpegFromTrack(stream: MediaStream) {
@@ -107,16 +132,18 @@ async function waitForVideoFrame(video: HTMLVideoElement, timeoutMs = 8000) {
 /**
  * Stage-window singleton for the controls-island screen share.
  *
- * Lives outside the collapsing island so Chrome keeps decoding frames,
- * and feeds them into the existing vision ticker/orchestrator.
+ * Lives outside the collapsing island so Chrome keeps decoding frames.
+ * Consciousness (the chat model) is her eyes: last 3 numbered frames
+ * are shown, and she comments after N scene changes.
  */
 export const useStageScreenStreamStore = defineStore('stage-screen-stream', () => {
-  const visionStore = useVisionStore()
+  const consciousnessStore = useConsciousnessStore()
   const visionProcessingStore = useVisionProcessingStore()
-  const visionOrchestratorStore = useVisionOrchestratorStore()
   const modsServerChannelStore = useModsServerChannelStore()
-  const { configured } = storeToRefs(visionStore)
-  const { isRunning } = storeToRefs(visionProcessingStore)
+  const chatStore = useChatStore()
+  const chatSession = useChatSessionStore()
+  const { configured } = storeToRefs(consciousnessStore)
+  const { isRunning, commentAfterSceneChanges } = storeToRefs(visionProcessingStore)
 
   const videoRef = ref<HTMLVideoElement | null>(null)
   const pickerOpen = ref(false)
@@ -124,6 +151,10 @@ export const useStageScreenStreamStore = defineStore('stage-screen-stream', () =
   const ignoringStreamDrop = ref(false)
   const errorMessage = ref('')
   const sourceCategory = ref<SourceCategory>('displays')
+  const previewFrames = ref<string[]>([])
+  const sceneChangesSinceComment = ref(0)
+  const lastFingerprint = ref<Uint8Array | null>(null)
+  const commentInFlight = ref(false)
 
   const {
     sources,
@@ -140,6 +171,7 @@ export const useStageScreenStreamStore = defineStore('stage-screen-stream', () =
   } = useVisionScreenCapture(sourcesOptions)
 
   const isStreaming = computed(() => hasLiveVideoStream(activeStream.value))
+  const neededSceneChanges = computed(() => clampCommentAfterChanges(commentAfterSceneChanges.value))
 
   const isDisplaySource = (source: { id: string }) => source.id.startsWith('screen:')
   const isWindowSource = (source: { id: string }) => source.id.startsWith('window:')
@@ -154,6 +186,13 @@ export const useStageScreenStreamStore = defineStore('stage-screen-stream', () =
     displays: sources.value.filter(isDisplaySource).length,
     windows: sources.value.filter(isWindowSource).length,
   }))
+
+  function resetFrameState() {
+    previewFrames.value = []
+    sceneChangesSinceComment.value = 0
+    lastFingerprint.value = null
+    commentInFlight.value = false
+  }
 
   async function attachStreamToVideo(stream: MediaStream) {
     const video = videoRef.value
@@ -202,7 +241,62 @@ export const useStageScreenStreamStore = defineStore('stage-screen-stream', () =
     return captureFrame(video, CAPTURE_JPEG_QUALITY, CAPTURE_MAX_WIDTH, CAPTURE_MAX_HEIGHT)
   }
 
-  async function handleVisionTick() {
+  async function commentOnFrames() {
+    if (commentInFlight.value || chatStore.sending)
+      return false
+    if (previewFrames.value.length === 0)
+      return false
+
+    let sessionId = chatSession.activeSessionId
+    if (!sessionId)
+      sessionId = await chatSession.ensureCurrentSession()
+    if (!sessionId)
+      return false
+
+    const attachments = previewFrames.value
+      .map(dataUrlToImageAttachment)
+      .filter((attachment): attachment is { type: 'image', data: string, mimeType: string } => attachment !== null)
+
+    if (attachments.length === 0)
+      return false
+
+    commentInFlight.value = true
+    try {
+      await chatStore.send({
+        sessionId,
+        text: buildScreenCommentPrompt(sceneChangesSinceComment.value, attachments.length),
+        attachments,
+      })
+      sceneChangesSinceComment.value = 0
+      return true
+    }
+    finally {
+      commentInFlight.value = false
+    }
+  }
+
+  async function ingestCapturedFrame(dataUrl: string) {
+    const fingerprint = await computeFingerprintFromDataUrl(dataUrl)
+    const changed = !fingerprint || isSceneChange(lastFingerprint.value, fingerprint)
+    if (fingerprint)
+      lastFingerprint.value = fingerprint
+
+    if (changed) {
+      previewFrames.value = [...previewFrames.value, dataUrl].slice(-PREVIEW_FRAME_LIMIT)
+      sceneChangesSinceComment.value += 1
+    }
+    else if (previewFrames.value.length === 0) {
+      previewFrames.value = [dataUrl]
+    }
+
+    let commented = false
+    if (sceneChangesSinceComment.value >= neededSceneChanges.value)
+      commented = await commentOnFrames()
+
+    return { changed, commented }
+  }
+
+  async function handleStreamTick() {
     if (!activeSourceId.value)
       return
 
@@ -222,28 +316,20 @@ export const useStageScreenStreamStore = defineStore('stage-screen-stream', () =
         return
 
       const capturedAt = Date.now()
-      const result = await visionOrchestratorStore.processCapture({
-        imageDataUrl: dataUrl,
-        workloadId: 'screen:interpret',
-        sourceId: activeSourceId.value,
-        capturedAt,
-        publishContext: true,
-      })
-
-      return { capturedAt, contextUpdates: result.contextUpdates }
+      const result = await ingestCapturedFrame(dataUrl)
+      return { capturedAt, contextUpdates: result.changed || result.commented ? 1 : 0 }
     }
     catch (error) {
-      visionOrchestratorStore.recordError(error)
       errorMessage.value = errorMessageFrom(error)
       return { capturedAt: Date.now(), contextUpdates: 0 }
     }
   }
 
-  function startVisionTicker() {
+  function startStreamTicker() {
     if (!configured.value)
       return false
 
-    visionProcessingStore.startTicker(handleVisionTick)
+    visionProcessingStore.startTicker(handleStreamTick)
     return true
   }
 
@@ -260,7 +346,7 @@ export const useStageScreenStreamStore = defineStore('stage-screen-stream', () =
 
   watch(configured, (isConfigured) => {
     if (isConfigured && isStreaming.value && !isRunning.value)
-      startVisionTicker()
+      startStreamTicker()
   })
 
   function bindVideoElement(element: HTMLVideoElement | null) {
@@ -277,16 +363,18 @@ export const useStageScreenStreamStore = defineStore('stage-screen-stream', () =
 
     try {
       if (!configured.value)
-        throw new Error('Vision model is not configured')
+        throw new Error('Consciousness model is not configured')
 
+      resetFrameState()
       await ensureVideoStream()
       await modsServerChannelStore.ensureConnected().catch(() => {})
-      startVisionTicker()
+      startStreamTicker()
       pickerOpen.value = false
     }
     catch (error) {
       visionProcessingStore.stopTicker()
       stopStream()
+      resetFrameState()
       errorMessage.value = errorMessageFrom(error)
       throw error
     }
@@ -298,6 +386,7 @@ export const useStageScreenStreamStore = defineStore('stage-screen-stream', () =
   function stopCapture() {
     visionProcessingStore.stopTicker()
     stopStream()
+    resetFrameState()
     const video = videoRef.value
     if (video) {
       video.pause()
@@ -341,6 +430,10 @@ export const useStageScreenStreamStore = defineStore('stage-screen-stream', () =
     hasFetchedOnce,
     isStreaming,
     configured,
+    previewFrames,
+    sceneChangesSinceComment,
+    commentAfterSceneChanges,
+    neededSceneChanges,
     bindVideoElement,
     refetchSources,
     startCapture,
@@ -348,5 +441,6 @@ export const useStageScreenStreamStore = defineStore('stage-screen-stream', () =
     openPicker,
     closePicker,
     cleanupSession,
+    ingestCapturedFrame,
   }
 })

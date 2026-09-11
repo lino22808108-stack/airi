@@ -36,12 +36,14 @@ docs:
     start: Chia sẻ màn hình
     stop: Dừng chia sẻ màn hình
     pick: Chọn màn hình
-    pick-hint: Chọn màn hình hoặc cửa sổ. Cô ấy xem trực tiếp theo khoảng thời gian ở Cài đặt → Vision.
+    pick-hint: Chọn màn hình hoặc cửa sổ. Đôi mắt là mô hình chat (Consciousness). Khoảng thời gian và số lần đổi cảnh ở Cài đặt → Vision.
     displays: Màn hình
     windows: Cửa sổ
     empty: Không có gì để chia sẻ
     loading: Đang tải...
-    vision-unconfigured: Hãy đặt mô hình vision trong Cài đặt → Modules → Vision để cô ấy hiểu màn hình.
+    vision-unconfigured: Hãy chọn mô hình chat nhìn được ảnh trong Cài đặt → Modules → Consciousness. Tab Vision chỉ là cài đặt stream.
+    overlay-title: Màn hình
+    overlay-changes: Đổi cảnh {current}/{target}
 widgets:
   close: Đóng tiện ích
   empty:

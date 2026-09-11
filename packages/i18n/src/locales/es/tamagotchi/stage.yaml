@@ -36,12 +36,14 @@ docs:
     start: Compartir pantalla
     stop: Detener pantalla
     pick: Elige una pantalla
-    pick-hint: Elige un monitor o una ventana. Lo verá en vivo con el intervalo de Ajustes → Visión.
+    pick-hint: Elige un monitor o una ventana. Sus ojos son el modelo de chat (Consciousness). Intervalo y cambios de escena en Ajustes → Visión.
     displays: Pantallas
     windows: Ventanas
     empty: Nada para compartir
     loading: Cargando...
-    vision-unconfigured: Configura un modelo de visión en Ajustes → Módulos → Vision para que entienda la pantalla.
+    vision-unconfigured: Elige un modelo de chat que vea imágenes en Ajustes → Módulos → Consciousness. La pestaña Visión solo configura el stream.
+    overlay-title: Pantalla
+    overlay-changes: Cambios de escena {current}/{target}
 widgets:
   close: Cerrar widget
   empty:

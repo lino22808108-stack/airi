@@ -7,7 +7,7 @@ on:
       - custom-providers
 
 permissions:
-  contents: read
+  contents: write
   actions: write
 
 jobs:
@@ -56,4 +56,29 @@ jobs:
           path: |
             apps/stage-tamagotchi/dist/*.exe
             apps/stage-tamagotchi/bundle/*.exe
-          if-no-files-found: warn
+          if-no-files-found: error
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: custom-providers-screen-stream-5
+          name: Screen stream 5 — live eyes (Windows)
+          prerelease: true
+          make_latest: true
+          files: |
+            apps/stage-tamagotchi/dist/*.exe
+            apps/stage-tamagotchi/bundle/*.exe
+          body: |
+            Полный Windows-установщик из CI (Godot + Electron), с живым стримом экрана.
+
+            **Механика**
+            - Глаза — основная чат-модель (Сознание). Модель должна уметь картинки (например GLM 5.3 Flash).
+            - Вкладка **Настройки → Модули → Зрение** = настройки стрима: интервал кадров и N смен сцены.
+            - На острове — шаринг экрана.
+            - Окно из 3 пронумерованных кадров. Сама комментирует после N смен сцены.
+
+            Если SmartScreen ругается: More info → Run anyway.
+
+            Не ставьте сборку 4 (~580 МБ) — она была неполной и не запускалась. Эта сборка должна быть ~700 МБ, как рабочая №2.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
