@@ -3,7 +3,11 @@ import { storeToRefs } from 'pinia'
 import { computed, onBeforeUnmount } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { useStageScreenStreamStore } from '../stores/stage-screen-stream'
+import {
+  overlayColumnCount,
+  overlayPanelWidthRem,
+  useStageScreenStreamStore,
+} from '../stores/stage-screen-stream'
 
 const { t } = useI18n()
 const store = useStageScreenStreamStore()
@@ -24,6 +28,15 @@ const numberedFrames = computed(() => {
     dataUrl,
   }))
 })
+
+const overlaySlots = computed(() => neededSceneChanges.value)
+const overlayColumns = computed(() => overlayColumnCount(overlaySlots.value))
+const overlayWidthRem = computed(() => overlayPanelWidthRem(overlaySlots.value))
+const overlayGap = computed(() => overlaySlots.value <= 6 ? '0.375rem' : '0.25rem')
+const overlayPadding = computed(() => overlaySlots.value <= 6 ? '0.5rem' : '0.375rem')
+const overlayBadgeClass = computed(() => overlaySlots.value >= 7
+  ? 'px-1 py-px text-[9px] font-semibold text-white'
+  : 'px-1.5 py-0.5 text-[10px] font-semibold text-white')
 
 onBeforeUnmount(() => {
   store.cleanupSession()
@@ -50,7 +63,11 @@ onBeforeUnmount(() => {
 
     <div
       v-if="isStreaming"
-      class="pointer-events-none fixed bottom-3 left-3 z-40 w-[min(22rem,calc(100dvw-1.5rem))] rounded-2xl border border-neutral-200/80 bg-neutral-100/85 p-2 shadow-2xl shadow-black/25 backdrop-blur-xl dark:border-neutral-800/80 dark:bg-neutral-900/85"
+      class="pointer-events-none fixed bottom-3 left-3 z-40 rounded-2xl border border-neutral-200/80 bg-neutral-100/85 shadow-2xl shadow-black/25 backdrop-blur-xl dark:border-neutral-800/80 dark:bg-neutral-900/85"
+      :style="{
+        width: `min(${overlayWidthRem}rem, calc(100dvw - 1.5rem))`,
+        padding: overlayPadding,
+      }"
     >
       <div class="mb-1.5 flex items-center justify-between gap-2 px-0.5">
         <span class="text-xs font-medium text-neutral-700 dark:text-neutral-200">
@@ -63,9 +80,15 @@ onBeforeUnmount(() => {
           }) }}
         </span>
       </div>
-      <div class="grid grid-cols-3 gap-1.5">
+      <div
+        class="grid"
+        :style="{
+          gridTemplateColumns: `repeat(${overlayColumns}, minmax(0, 1fr))`,
+          gap: overlayGap,
+        }"
+      >
         <div
-          v-for="slot in 3"
+          v-for="slot in overlaySlots"
           :key="slot"
           class="relative overflow-hidden rounded-lg bg-neutral-200/80 dark:bg-neutral-950"
         >
@@ -77,7 +100,10 @@ onBeforeUnmount(() => {
               class="h-full w-full object-cover"
             >
           </div>
-          <span class="absolute left-1 top-1 rounded-md bg-black/70 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+          <span
+            class="absolute left-1 top-1 rounded-md bg-black/70"
+            :class="overlayBadgeClass"
+          >
             {{ slot }}
           </span>
         </div>

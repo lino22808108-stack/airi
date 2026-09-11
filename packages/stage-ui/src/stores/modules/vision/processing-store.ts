@@ -12,6 +12,7 @@ type VisionTickHandler = () => Promise<VisionTickOutcome | void> | VisionTickOut
 
 const DEFAULT_CAPTURE_INTERVAL_MS = 3000
 const DEFAULT_COMMENT_AFTER_SCENE_CHANGES = 3
+const MAX_COMMENT_AFTER_SCENE_CHANGES = 9
 const HISTORY_MAX_AGE_MS = 5 * 60 * 1000
 const PROCESSING_HISTORY_LIMIT = 240
 
@@ -42,6 +43,17 @@ export const useVisionProcessingStore = defineStore('vision-processing', () => {
     'settings/vision/screen-comment-after-changes',
     DEFAULT_COMMENT_AFTER_SCENE_CHANGES,
   )
+
+  watch(commentAfterSceneChanges, (value) => {
+    if (!Number.isFinite(value)) {
+      commentAfterSceneChanges.value = DEFAULT_COMMENT_AFTER_SCENE_CHANGES
+      return
+    }
+
+    const next = Math.min(MAX_COMMENT_AFTER_SCENE_CHANGES, Math.max(1, Math.round(value)))
+    if (next !== value)
+      commentAfterSceneChanges.value = next
+  }, { immediate: true })
 
   const isRunning = ref(false)
   const isProcessing = ref(false)

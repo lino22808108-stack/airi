@@ -214,9 +214,56 @@ describe('stage screen stream store', () => {
       { type: 'image', mimeType: 'image/jpeg', data: 'frame1' },
       { type: 'image', mimeType: 'image/jpeg', data: 'frame2' },
     ])
+    expect(payload.text.startsWith('[Screen]')).toBe(true)
     expect(payload.text).toContain('scene change')
     expect(store.previewFrames).toHaveLength(2)
     expect(store.sceneChangesSinceComment).toBe(0)
+  })
+
+  it('keeps N overlay frames up to 9 and comments with that many attachments', async () => {
+    const { useStageScreenStreamStore } = await import('./stage-screen-stream')
+    const { useVisionProcessingStore } = await import('@proj-airi/stage-ui/stores/modules/vision')
+    const processing = useVisionProcessingStore()
+    processing.commentAfterSceneChanges = 6
+
+    const store = useStageScreenStreamStore()
+    store.bindVideoElement(bindFakeVideo())
+    await store.startCapture('screen:0:0')
+
+    for (let index = 1; index <= 6; index += 1) {
+      fingerprintMocks.next = new Uint8Array(24 * 24).fill(index * 40)
+      await store.ingestCapturedFrame(`data:image/jpeg;base64,frame${index}`)
+    }
+
+    expect(chatMocks.send).toHaveBeenCalledTimes(1)
+    const payload = chatMocks.send.mock.calls[0][0]
+    expect(payload.attachments).toHaveLength(6)
+    expect(payload.text).toContain('6 numbered frames')
+    expect(store.previewFrames).toHaveLength(6)
+    expect(store.neededSceneChanges).toBe(6)
+  })
+
+  it('clamps overlay and comment count to 9, with 3×3 columns at max', async () => {
+    const {
+      clampCommentAfterChanges,
+      overlayColumnCount,
+      overlayPanelWidthRem,
+      useStageScreenStreamStore,
+    } = await import('./stage-screen-stream')
+    const { useVisionProcessingStore } = await import('@proj-airi/stage-ui/stores/modules/vision')
+    const processing = useVisionProcessingStore()
+    processing.commentAfterSceneChanges = 99
+
+    const store = useStageScreenStreamStore()
+    expect(store.neededSceneChanges).toBe(9)
+    expect(clampCommentAfterChanges(10)).toBe(9)
+    expect(overlayColumnCount(1)).toBe(1)
+    expect(overlayColumnCount(2)).toBe(2)
+    expect(overlayColumnCount(3)).toBe(3)
+    expect(overlayColumnCount(4)).toBe(2)
+    expect(overlayColumnCount(6)).toBe(3)
+    expect(overlayColumnCount(9)).toBe(3)
+    expect(overlayPanelWidthRem(9)).toBeLessThan(overlayPanelWidthRem(3))
   })
 
   it('stopCapture tears down both the ticker and the live stream', async () => {

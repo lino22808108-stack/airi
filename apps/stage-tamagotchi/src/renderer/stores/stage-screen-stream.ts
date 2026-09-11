@@ -26,7 +26,32 @@ const sourcesOptions: SourcesOptions = {
 const CAPTURE_MAX_WIDTH = 1280
 const CAPTURE_MAX_HEIGHT = 720
 const CAPTURE_JPEG_QUALITY = 0.82
-const PREVIEW_FRAME_LIMIT = 3
+export const MAX_SCREEN_STREAM_FRAMES = 9
+
+export function clampCommentAfterChanges(value: number) {
+  if (!Number.isFinite(value))
+    return 3
+  return Math.min(MAX_SCREEN_STREAM_FRAMES, Math.max(1, Math.round(value)))
+}
+
+/** 1 → 1×1, 2 → 1×2, 3 → 1×3, 4 → 2×2, 6 → 2×3, 9 → 3×3. */
+export function overlayColumnCount(frameCount: number) {
+  const n = clampCommentAfterChanges(frameCount)
+  if (n <= 1)
+    return 1
+  if (n === 2 || n === 4)
+    return 2
+  return 3
+}
+
+export function overlayPanelWidthRem(frameCount: number) {
+  const n = clampCommentAfterChanges(frameCount)
+  const cols = overlayColumnCount(n)
+  const thumb = n <= 3 ? 6.75 : n <= 6 ? 5.15 : 4.15
+  const gap = n <= 6 ? 0.375 : 0.25
+  const pad = n <= 6 ? 1 : 0.75
+  return Number((cols * thumb + Math.max(0, cols - 1) * gap + pad).toFixed(2))
+}
 
 function hasLiveVideoStream(stream: MediaStream | null | undefined) {
   if (!stream)
@@ -41,12 +66,6 @@ function scaleCaptureSize(width: number, height: number) {
     width: Math.max(1, Math.round(width * scale)),
     height: Math.max(1, Math.round(height * scale)),
   }
-}
-
-function clampCommentAfterChanges(value: number) {
-  if (!Number.isFinite(value))
-    return 3
-  return Math.min(10, Math.max(1, Math.round(value)))
 }
 
 function buildScreenCommentPrompt(sceneChanges: number, frameCount: number) {
@@ -133,8 +152,8 @@ async function waitForVideoFrame(video: HTMLVideoElement, timeoutMs = 8000) {
  * Stage-window singleton for the controls-island screen share.
  *
  * Lives outside the collapsing island so Chrome keeps decoding frames.
- * Consciousness (the chat model) is her eyes: last 3 numbered frames
- * are shown, and she comments after N scene changes.
+ * Consciousness (the chat model) is her eyes: N numbered frames
+ * are shown (max 9), and she comments after N scene changes.
  */
 export const useStageScreenStreamStore = defineStore('stage-screen-stream', () => {
   const consciousnessStore = useConsciousnessStore()
@@ -282,7 +301,7 @@ export const useStageScreenStreamStore = defineStore('stage-screen-stream', () =
       lastFingerprint.value = fingerprint
 
     if (changed) {
-      previewFrames.value = [...previewFrames.value, dataUrl].slice(-PREVIEW_FRAME_LIMIT)
+      previewFrames.value = [...previewFrames.value, dataUrl].slice(-neededSceneChanges.value)
       sceneChangesSinceComment.value += 1
     }
     else if (previewFrames.value.length === 0) {
@@ -332,6 +351,11 @@ export const useStageScreenStreamStore = defineStore('stage-screen-stream', () =
     visionProcessingStore.startTicker(handleStreamTick)
     return true
   }
+
+  watch(neededSceneChanges, (limit) => {
+    if (previewFrames.value.length > limit)
+      previewFrames.value = previewFrames.value.slice(-limit)
+  })
 
   watch(activeStream, (stream) => {
     const video = videoRef.value

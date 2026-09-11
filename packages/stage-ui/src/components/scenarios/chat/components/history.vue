@@ -18,7 +18,7 @@ import ChatUserItem from './user-item.vue'
 import { useChatHistoryScroll } from '../composables/use-chat-history-scroll'
 import { useChatHistoryTopFade } from '../composables/use-chat-history-top-fade'
 import { useVirtualizerBottomAlignment, useVirtualizerScroll } from '../composables/use-virtualizer-scroll'
-import { getChatHistoryItemCopyText, getChatHistoryItemKey } from '../utils'
+import { getChatHistoryItemCopyText, getChatHistoryItemKey, isHiddenScreenStreamPrompt } from '../utils'
 
 defineOptions({
   inheritAttrs: false,
@@ -88,7 +88,7 @@ function canReplyToMessage(message: ChatHistoryItem) {
 
   return getChatHistoryItemCopyText(message).trim().length > 0
 }
-const renderMessages = computed<ChatHistoryItem[]>(() => {
+const sessionMessages = computed<ChatHistoryItem[]>(() => {
   if (!props.sending)
     return props.messages
 
@@ -102,8 +102,11 @@ const renderMessages = computed<ChatHistoryItem[]>(() => {
 
   return [...props.messages, streaming.value]
 })
+const renderMessages = computed(() =>
+  sessionMessages.value.filter(message => !isHiddenScreenStreamPrompt(message)),
+)
 const messagesById = computed(() => new Map(
-  renderMessages.value.flatMap(message => message.id ? [[message.id, message] as const] : []),
+  sessionMessages.value.flatMap(message => message.id ? [[message.id, message] as const] : []),
 ))
 const renderMessageCount = computed(() => renderMessages.value.length)
 const topFadeRatio = computed(() => props.variant === 'mobile' ? 0.2 : 0)
@@ -126,7 +129,23 @@ useChatHistoryTopFade({
   fadeRatio: topFadeRatio,
 })
 
-function emitCopyMessage(message: ChatHistoryItem, index: number) {
+function sourceIndexOf(message: ChatHistoryItem, visibleIndex: number): number {
+  const session = sessionMessages.value
+  if (message.id) {
+    const byId = session.findIndex(item => item.id === message.id)
+    if (byId >= 0)
+      return byId
+  }
+
+  const byRef = session.indexOf(message)
+  if (byRef >= 0)
+    return byRef
+
+  return visibleIndex
+}
+
+function emitCopyMessage(message: ChatHistoryItem, visibleIndex: number) {
+  const index = sourceIndexOf(message, visibleIndex)
   emit('copyMessage', {
     message,
     index,
@@ -134,7 +153,8 @@ function emitCopyMessage(message: ChatHistoryItem, index: number) {
   })
 }
 
-function emitDeleteMessage(message: ChatHistoryItem, index: number) {
+function emitDeleteMessage(message: ChatHistoryItem, visibleIndex: number) {
+  const index = sourceIndexOf(message, visibleIndex)
   emit('deleteMessage', {
     message,
     index,
@@ -142,7 +162,8 @@ function emitDeleteMessage(message: ChatHistoryItem, index: number) {
   })
 }
 
-function emitRetryMessage(message: ChatHistoryItem, index: number) {
+function emitRetryMessage(message: ChatHistoryItem, visibleIndex: number) {
+  const index = sourceIndexOf(message, visibleIndex)
   emit('retryMessage', {
     message,
     index,
@@ -167,6 +188,8 @@ function getReplyTarget(message: ChatHistoryItem): ChatHistoryReplyPayload | und
   const target = messagesById.value.get(message.replyToMessageId)
   if (!target || (target.role !== 'assistant' && target.role !== 'user'))
     return undefined
+  if (isHiddenScreenStreamPrompt(target))
+    return undefined
 
   return {
     label: target.role === 'assistant' ? labels.value.assistant : labels.value.user,
@@ -176,9 +199,10 @@ function getReplyTarget(message: ChatHistoryItem): ChatHistoryReplyPayload | und
 
 function emitToolCallRerun(
   message: ChatHistoryItem,
-  index: number,
+  visibleIndex: number,
   payload: { toolCallId: string, toolName: string, args: string },
 ) {
+  const index = sourceIndexOf(message, visibleIndex)
   emit('toolCallRerun', {
     message,
     index,

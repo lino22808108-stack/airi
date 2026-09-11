@@ -351,7 +351,7 @@ function formatRelativeTime(timestamp: number | null) {
             Screen stream
           </h2>
           <div :class="['text-neutral-400', 'dark:text-neutral-400']">
-            Consciousness (the chat model) is her eyes. This tab is the stream: capture interval and how many scene changes before she comments on the last 3 numbered frames.
+            Consciousness (the chat model) is her eyes. This tab is the stream: capture interval and how many scene changes before she comments. Overlay shows that many numbered frames, maximum 9.
           </div>
         </div>
 
@@ -368,9 +368,9 @@ function formatRelativeTime(timestamp: number | null) {
         <FieldRange
           v-model="commentAfterSceneChanges"
           label="Comment after scene changes"
-          description="After this many distinct scene changes she sends the last 3 numbered frames to the chat model and comments in character."
+          description="After this many distinct scene changes she sends that many numbered frames to the chat model and comments in character. Maximum 9."
           :min="1"
-          :max="10"
+          :max="9"
           :step="1"
           :format-value="value => `${Math.round(Number(value))}`"
         />
