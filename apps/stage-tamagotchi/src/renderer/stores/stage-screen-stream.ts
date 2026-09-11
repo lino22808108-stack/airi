@@ -48,9 +48,9 @@ export function overlayColumnCount(frameCount: number) {
 export function overlayPanelWidthRem(frameCount: number) {
   const n = clampCommentAfterChanges(frameCount)
   const cols = overlayColumnCount(n)
-  const thumb = n <= 3 ? 6.75 : n <= 6 ? 5.15 : 4.15
-  const gap = n <= 6 ? 0.375 : 0.25
-  const pad = n <= 6 ? 1 : 0.75
+  const thumb = n <= 3 ? 4.35 : n <= 6 ? 3.2 : 2.7
+  const gap = 0.25
+  const pad = 0.55
   return Number((cols * thumb + Math.max(0, cols - 1) * gap + pad).toFixed(2))
 }
 

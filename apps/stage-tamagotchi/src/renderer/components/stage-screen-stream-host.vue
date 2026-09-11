@@ -33,8 +33,8 @@ const numberedFrames = computed(() => {
 const overlaySlots = computed(() => neededSceneChanges.value)
 const overlayColumns = computed(() => overlayColumnCount(overlaySlots.value))
 const overlayWidthRem = computed(() => overlayPanelWidthRem(overlaySlots.value))
-const overlayGap = computed(() => overlaySlots.value <= 6 ? '0.375rem' : '0.25rem')
-const overlayPadding = computed(() => overlaySlots.value <= 6 ? '0.5rem' : '0.375rem')
+const overlayGap = computed(() => '0.25rem')
+const overlayPadding = computed(() => '0.35rem')
 const overlayBadgeClass = computed(() => overlaySlots.value >= 7
   ? 'px-1 py-px text-[9px] font-semibold text-white'
   : 'px-1.5 py-0.5 text-[10px] font-semibold text-white')
@@ -59,19 +59,19 @@ onBeforeUnmount(() => {
       playsinline
       disablepictureinpicture
       aria-hidden="true"
-      class="pointer-events-none fixed left-0 top-0 z--1 h-[180px] w-[320px] opacity-0"
+      class="pointer-events-none fixed left-0 top-0 z--1 h-[160px] w-[240px] max-h-[100vh] max-w-[100vw] opacity-0"
     />
 
     <div
       v-if="isStreaming && overlayFramesVisible"
-      class="pointer-events-none fixed bottom-3 left-3 z-40 rounded-2xl border border-neutral-200/70 bg-neutral-100/80 shadow-xl shadow-black/20 backdrop-blur-xl dark:border-neutral-800/70 dark:bg-neutral-900/80"
+      class="pointer-events-none fixed bottom-1 left-1 z-30 rounded-xl border border-neutral-200/70 bg-neutral-100/80 shadow-xl shadow-black/20 backdrop-blur-xl dark:border-neutral-800/70 dark:bg-neutral-900/80"
       :style="{
-        width: `min(${overlayWidthRem}rem, calc(100dvw - 1.5rem))`,
+        width: `min(${overlayWidthRem}rem, calc(100dvw - 5.75rem))`,
         padding: overlayPadding,
       }"
     >
-      <div class="mb-1.5 flex items-center justify-between gap-2 px-0.5">
-        <span class="text-xs font-medium text-neutral-600 dark:text-neutral-300">
+      <div class="mb-1 flex items-center justify-between gap-1 px-0.5">
+        <span class="text-[11px] font-medium text-neutral-600 dark:text-neutral-300">
           {{ t('tamagotchi.stage.controls-island.screen-stream.overlay-title') }}
         </span>
         <span class="text-[11px] text-neutral-500 dark:text-neutral-400">

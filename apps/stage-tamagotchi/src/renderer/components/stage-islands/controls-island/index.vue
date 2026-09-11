@@ -236,7 +236,7 @@ function resetMainWindowPosition() {
     :data-direction="direction"
     :data-scroll-owner="scrollWholeIsland ? 'island' : 'menu'"
     :class="[
-      'fixed max-h-[calc(100dvh-1rem)] max-w-[calc(100dvw-1rem)]',
+      'fixed z-50 overflow-visible max-h-[calc(100dvh-1rem)] max-w-[calc(100dvw-1rem)]',
       islandPositionClasses,
       islandMotionClasses,
     ]"
@@ -460,26 +460,39 @@ function resetMainWindowPosition() {
             </template>
           </ControlButtonTooltip>
 
-          <ControlButtonTooltip side="inward">
-            <ControlsIslandHearingConfig :show="blockingOverlays.has('hearing')" @update:show="setOverlay('hearing', $event)">
-              <div class="relative">
-                <ControlButton :button-style="adjustStyleClasses.button">
-                  <Transition name="fade" mode="out-in">
-                    <IndicatorMicVolume v-if="enabled" :class="adjustStyleClasses.icon" />
-                    <div v-else i-ph:microphone-slash :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
-                  </Transition>
-                </ControlButton>
-              </div>
-            </ControlsIslandHearingConfig>
-            <template #tooltip>
-              {{ t('tamagotchi.stage.controls-island.open-hearing-controls') }}
-            </template>
-          </ControlButtonTooltip>
+          <div class="relative">
+            <ControlButtonTooltip side="inward">
+              <ControlsIslandHearingConfig :show="blockingOverlays.has('hearing')" @update:show="setOverlay('hearing', $event)">
+                <div class="relative">
+                  <ControlButton :button-style="adjustStyleClasses.button">
+                    <Transition name="fade" mode="out-in">
+                      <IndicatorMicVolume v-if="enabled" :class="adjustStyleClasses.icon" />
+                      <div v-else i-ph:microphone-slash :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
+                    </Transition>
+                  </ControlButton>
+                </div>
+              </ControlsIslandHearingConfig>
+              <template #tooltip>
+                {{ t('tamagotchi.stage.controls-island.open-hearing-controls') }}
+              </template>
+            </ControlButtonTooltip>
 
-          <ControlsIslandOverlayFrames
-            :icon-class="adjustStyleClasses.icon"
-            :button-style="adjustStyleClasses.button"
-          />
+            <!--
+              Hang the TV off the column instead of inserting a 6th row.
+              The default 450x600 window is already at the sideways-overflow
+              threshold; an extra main-control row flips expand to the side.
+            -->
+            <div
+              class="absolute z-10"
+              :class="isLeft ? 'left-full ml-1' : 'right-full mr-1'"
+              style="top: calc(100% + 0.25rem)"
+            >
+              <ControlsIslandOverlayFrames
+                :icon-class="adjustStyleClasses.icon"
+                :button-style="adjustStyleClasses.button"
+              />
+            </div>
+          </div>
 
           <ControlsIslandStopSpeaking
             :button-style="adjustStyleClasses.button"
