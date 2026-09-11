@@ -64,9 +64,10 @@ onBeforeUnmount(() => {
 
     <div
       v-if="isStreaming && overlayFramesVisible"
-      class="pointer-events-none fixed bottom-1 left-1 z-30 rounded-xl border border-neutral-200/70 bg-neutral-100/80 shadow-xl shadow-black/20 backdrop-blur-xl dark:border-neutral-800/70 dark:bg-neutral-900/80"
+      class="pointer-events-none fixed bottom-1 left-1/2 z-30 rounded-xl border border-neutral-200/70 bg-neutral-100/80 shadow-xl shadow-black/20 backdrop-blur-xl dark:border-neutral-800/70 dark:bg-neutral-900/80"
       :style="{
-        width: `min(${overlayWidthRem}rem, calc(100dvw - 5.75rem))`,
+        width: `min(${overlayWidthRem}rem, calc(100dvw - 6.5rem))`,
+        transform: 'translateX(-50%)',
         padding: overlayPadding,
       }"
     >

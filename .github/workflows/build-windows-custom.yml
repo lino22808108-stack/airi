@@ -61,8 +61,8 @@ jobs:
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: custom-providers-screen-stream-9
-          name: Screen stream 9 — overlay size and island layout (Windows)
+          tag_name: custom-providers-screen-stream-10
+          name: Screen stream 10 — TV in column, frames at feet (Windows)
           prerelease: true
           make_latest: true
           files: |
@@ -71,9 +71,10 @@ jobs:
           body: |
             Полный Windows-установщик из CI (Godot + Electron), с живым стримом экрана.
 
-            **Что нового в 9**
-            - Кадры меньше и ниже, справа запас под островок — телик не перекрывается.
-            - Телик висит с внутренней стороны колонки, без 6-й кнопки в столбике: меню снова открывается вверх, а не вбок.
+            **Что нового в 10**
+            - Телик снова в столбике, строго между микрофоном и динамиком. Исчезает только когда стрим выключен.
+            - Стрелка открывает меню вверх, даже со стримом.
+            - Кадры внизу по центру (у ног), островок справа не перекрывают.
 
             Остальное как в 6: системный пузырь скрыт, кадры = N (макс. 9), сетка 3×3.
 

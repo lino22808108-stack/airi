@@ -26,7 +26,12 @@ export function useControlsIslandLayout(elements: LayoutElements, expanded: Ref<
   const menu = useElementSize(elements.menu, undefined, { box: 'border-box' })
   const available = useElementSize(elements.available)
   const gap = useElementSize(elements.gap)
+  // Stay stacked (menu scrolls) unless the leftover column is too short
+  // to host a usable panel. One extra main-control row (screen-stream TV)
+  // used to trip sideways on the default 450x600 window.
+  const remainingHeight = computed(() => available.height.value - main.height.value - gap.width.value)
   const sideways = computed(() => menu.height.value > 0 && available.height.value > 0
+    && remainingHeight.value < 88
     && main.height.value + gap.width.value + menu.height.value > available.height.value)
   const direction = computed(() => sideways.value
     ? (isLeft.value ? 'right' : 'left')
