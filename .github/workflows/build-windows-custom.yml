@@ -61,8 +61,8 @@ jobs:
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: custom-providers-screen-stream-11
-          name: Screen stream 11 — frames only, no labels (Windows)
+          tag_name: custom-providers-screen-stream-12
+          name: Screen stream 12 — same panel size, frames fill it (Windows)
           prerelease: true
           make_latest: true
           files: |
@@ -71,8 +71,8 @@ jobs:
           body: |
             Полный Windows-установщик из CI (Godot + Electron), с живым стримом экрана.
 
-            **Что нового в 11**
-            - В окошке превью только сами экраны: заголовок «Смены / Экран сцены» убран.
+            **Что нового в 12**
+            - Окошко превью того же размера, что с подписями. Текста нет — кадры занимают всё место.
 
             Остальное как в 10: телик в столбике между микро и динамиком, меню вверх, кадры внизу по центру.
 
