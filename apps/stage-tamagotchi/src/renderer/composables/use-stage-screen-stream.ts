@@ -28,6 +28,7 @@ export function useStageScreenStream() {
     sceneChangesSinceComment,
     commentAfterSceneChanges,
     neededSceneChanges,
+    overlayFramesVisible,
   } = storeToRefs(store)
 
   return {
@@ -49,6 +50,8 @@ export function useStageScreenStream() {
     sceneChangesSinceComment,
     commentAfterSceneChanges,
     neededSceneChanges,
+    overlayFramesVisible,
+    toggleOverlayFramesVisible: store.toggleOverlayFramesVisible,
     bindVideoElement: store.bindVideoElement,
     refetchSources: store.refetchSources,
     startCapture: store.startCapture,

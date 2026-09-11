@@ -64,6 +64,8 @@ vi.mock('../../../composables/use-stage-screen-stream', async () => {
       hasFetchedOnce: ref(false),
       isStreaming: computed(() => false),
       configured: computed(() => false),
+      overlayFramesVisible: ref(true),
+      toggleOverlayFramesVisible: vi.fn(),
       refetchSources: vi.fn(),
       startCapture: vi.fn(),
       stopCapture: vi.fn(),
