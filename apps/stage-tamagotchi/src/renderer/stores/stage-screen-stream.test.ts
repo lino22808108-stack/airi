@@ -266,6 +266,20 @@ describe('stage screen stream store', () => {
     expect(overlayPanelWidthRem(9)).toBeLessThan(overlayPanelWidthRem(3))
   })
 
+  it('toggles overlay frame visibility without stopping the stream', async () => {
+    const { useStageScreenStreamStore } = await import('./stage-screen-stream')
+    const store = useStageScreenStreamStore()
+    store.bindVideoElement(bindFakeVideo())
+    await store.startCapture('screen:0:0')
+
+    expect(store.overlayFramesVisible).toBe(true)
+    store.toggleOverlayFramesVisible()
+    expect(store.overlayFramesVisible).toBe(false)
+    expect(store.isStreaming).toBe(true)
+    store.toggleOverlayFramesVisible()
+    expect(store.overlayFramesVisible).toBe(true)
+  })
+
   it('stopCapture tears down both the ticker and the live stream', async () => {
     const { useStageScreenStreamStore } = await import('./stage-screen-stream')
     const { useVisionProcessingStore } = await import('@proj-airi/stage-ui/stores/modules/vision')

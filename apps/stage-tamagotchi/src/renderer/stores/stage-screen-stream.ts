@@ -27,6 +27,7 @@ const CAPTURE_MAX_WIDTH = 1280
 const CAPTURE_MAX_HEIGHT = 720
 const CAPTURE_JPEG_QUALITY = 0.82
 export const MAX_SCREEN_STREAM_FRAMES = 9
+const OVERLAY_FRAMES_VISIBLE_KEY = 'stage/screen-stream/overlay-frames-visible'
 
 export function clampCommentAfterChanges(value: number) {
   if (!Number.isFinite(value))
@@ -51,6 +52,30 @@ export function overlayPanelWidthRem(frameCount: number) {
   const gap = n <= 6 ? 0.375 : 0.25
   const pad = n <= 6 ? 1 : 0.75
   return Number((cols * thumb + Math.max(0, cols - 1) * gap + pad).toFixed(2))
+}
+
+function readOverlayFramesVisible() {
+  if (typeof localStorage === 'undefined')
+    return true
+
+  try {
+    return localStorage.getItem(OVERLAY_FRAMES_VISIBLE_KEY) !== '0'
+  }
+  catch {
+    return true
+  }
+}
+
+function persistOverlayFramesVisible(visible: boolean) {
+  if (typeof localStorage === 'undefined')
+    return
+
+  try {
+    localStorage.setItem(OVERLAY_FRAMES_VISIBLE_KEY, visible ? '1' : '0')
+  }
+  catch {
+    // Private mode can reject storage writes.
+  }
 }
 
 function hasLiveVideoStream(stream: MediaStream | null | undefined) {
@@ -174,6 +199,7 @@ export const useStageScreenStreamStore = defineStore('stage-screen-stream', () =
   const sceneChangesSinceComment = ref(0)
   const lastFingerprint = ref<Uint8Array | null>(null)
   const commentInFlight = ref(false)
+  const overlayFramesVisible = ref(readOverlayFramesVisible())
 
   const {
     sources,
@@ -211,6 +237,10 @@ export const useStageScreenStreamStore = defineStore('stage-screen-stream', () =
     sceneChangesSinceComment.value = 0
     lastFingerprint.value = null
     commentInFlight.value = false
+  }
+
+  function toggleOverlayFramesVisible() {
+    overlayFramesVisible.value = !overlayFramesVisible.value
   }
 
   async function attachStreamToVideo(stream: MediaStream) {
@@ -352,6 +382,8 @@ export const useStageScreenStreamStore = defineStore('stage-screen-stream', () =
     return true
   }
 
+  watch(overlayFramesVisible, persistOverlayFramesVisible)
+
   watch(neededSceneChanges, (limit) => {
     if (previewFrames.value.length > limit)
       previewFrames.value = previewFrames.value.slice(-limit)
@@ -458,6 +490,8 @@ export const useStageScreenStreamStore = defineStore('stage-screen-stream', () =
     sceneChangesSinceComment,
     commentAfterSceneChanges,
     neededSceneChanges,
+    overlayFramesVisible,
+    toggleOverlayFramesVisible,
     bindVideoElement,
     refetchSources,
     startCapture,
