@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import type {
-  Live2DExpressionLlmMode,
   Live2DExpressionSettingsCommand,
   Live2DMotionDriver,
 } from '@proj-airi/stage-ui-live2d'
@@ -16,6 +15,8 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import MagicMotionSettings from '../../../../features/motions/live2d/components/magic-settings.vue'
+import { FACE_GROUPS } from '../../../../stores/chat/expr-tag'
+import { useExpressionGroupsStore } from '../../../../stores/chat/expression-groups'
 
 import { PropertyPoint } from '../../../data-pane'
 import { Section } from '../../../layouts'
@@ -72,8 +73,17 @@ const {
 } = storeToRefs(live2d)
 
 const expressionStore = useExpressionStore()
+const expressionGroups = useExpressionGroupsStore()
+const { config, pickerFor } = storeToRefs(expressionGroups)
+const expressionTab = ref<'core' | 'custom'>('core')
 const expressionSettingsSnapshot = computed(() => props.runtimeSnapshot.live2dExpressions ?? expressionStore.settingsSnapshot)
 const usesRemoteExpressionRuntime = computed(() => props.runtimeSnapshot.live2dExpressions != null)
+const modelExpressionNames = computed(() => expressionSettingsSnapshot.value.groups.map(group => group.name))
+
+watch(() => props.runtimeSnapshot.modelId, (modelId) => {
+  if (modelId)
+    expressionGroups.useModel(modelId)
+}, { immediate: true })
 
 function applyExpressionSettingsCommand(command: Live2DExpressionSettingsCommand) {
   if (usesRemoteExpressionRuntime.value) {
@@ -140,11 +150,17 @@ watch(() => live2d.availableMotions, (motions) => {
   console.info('Available motions:', runtimeMotions.value)
 }, { immediate: true })
 
-const llmModeOptions = computed(() => [
-  { value: 'none', label: t('settings.live2d.expressions.expose-to-llm-options.none') },
-  { value: 'all', label: t('settings.live2d.expressions.expose-to-llm-options.all') },
-  { value: 'custom', label: t('settings.live2d.expressions.expose-to-llm-options.custom') },
-])
+function previewExpression(name: string) {
+  applyExpressionSettingsCommand({ type: 'toggle', name })
+}
+
+function pickerKey(target: string) {
+  return pickerFor.value === target
+}
+
+function togglePicker(target: string) {
+  pickerFor.value = pickerFor.value === target ? null : target
+}
 
 // Get available runtime motions from the model
 onMounted(() => {
@@ -769,50 +785,144 @@ function handleMotionSelect(selectedMotionPath: string | number | undefined) {
       </div>
     </template>
     <template v-else>
-      <!-- Expression preview toggles -->
-      <div flex flex-col gap-2>
-        <div
-          v-for="group in expressionSettingsSnapshot.groups"
-          :key="group.name"
-          flex items-center justify-between
+      <div mt-3 flex gap-4 border-b border-neutral-200 text-sm dark:border-neutral-700>
+        <button
+          :class="[expressionTab === 'core' ? 'border-primary-400 text-primary-500 border-b-2 pb-1' : 'text-neutral-500 pb-1']"
+          type="button"
+          @click="expressionTab = 'core'"
         >
-          <span text-sm text-neutral-700 dark:text-neutral-300>{{ group.name }}</span>
-          <Checkbox
-            :model-value="group.active"
-            @update:model-value="applyExpressionSettingsCommand({ type: 'toggle', name: group.name })"
-          />
+          {{ t('settings.live2d.expressions.tab-core') }}
+        </button>
+        <button
+          :class="[expressionTab === 'custom' ? 'border-primary-400 text-primary-500 border-b-2 pb-1' : 'text-neutral-500 pb-1']"
+          type="button"
+          @click="expressionTab = 'custom'"
+        >
+          {{ t('settings.live2d.expressions.tab-custom') }}
+        </button>
+      </div>
+
+      <div v-if="expressionTab === 'core'" mt-3 flex flex-col gap-2>
+        <div
+          v-for="group in FACE_GROUPS"
+          :key="group"
+          class="rounded-lg bg-neutral-50 p-2 dark:bg-neutral-900"
+        >
+          <div flex items-center justify-between gap-2>
+            <div>
+              <div text-sm font-medium>{{ t(`settings.live2d.expressions.face.${group}`) }}</div>
+              <div text-xs text-neutral-500>{{ t('settings.live2d.expressions.one-slot') }}</div>
+            </div>
+            <Button size="sm" @click="togglePicker(`face:${group}`)">
+              {{ t('settings.live2d.expressions.bind') }}
+            </Button>
+          </div>
+          <div v-if="config.face[group].length" mt-2 flex flex-wrap gap-1>
+            <button
+              v-for="name in config.face[group]"
+              :key="name"
+              type="button"
+              class="rounded-full bg-neutral-200 px-2 py-0.5 text-xs dark:bg-neutral-800"
+              @click="previewExpression(name)"
+            >
+              {{ name }}
+              <span
+                class="ml-1 text-neutral-400"
+                @click.stop="expressionGroups.removeFaceBind(group, name)"
+              >×</span>
+            </button>
+          </div>
+          <div v-if="pickerKey(`face:${group}`)" mt-2 flex flex-col gap-1>
+            <button
+              v-for="name in modelExpressionNames"
+              :key="name"
+              type="button"
+              class="flex items-center justify-between rounded px-2 py-1 text-left text-xs hover:bg-neutral-200 dark:hover:bg-neutral-800"
+              @click="expressionGroups.addFaceBind(group, name); previewExpression(name)"
+            >
+              <span>{{ name }}</span>
+              <span v-if="config.face[group].includes(name)" text-primary-500>✓</span>
+            </button>
+          </div>
         </div>
       </div>
 
-      <div mt-4 flex flex-wrap items-center gap-3>
-        <span whitespace-nowrap text-sm text-neutral-600 dark:text-neutral-400>{{ t('settings.live2d.expressions.expose-to-llm-toggle') }}</span>
-        <SelectTab
-          :model-value="expressionSettingsSnapshot.llmMode"
-          :options="llmModeOptions"
-          size="sm"
-          @update:model-value="(mode: string) => applyExpressionSettingsCommand({ type: 'set-llm-mode', mode: mode as Live2DExpressionLlmMode })"
-        />
-      </div>
-      <span v-if="expressionSettingsSnapshot.llmMode !== 'none'" text-xs text-neutral-500 dark:text-neutral-400>
-        {{ t('settings.live2d.expressions.llm-integration-wip') }}
-      </span>
-
-      <!-- Custom per-expression LLM toggles (only when mode = 'custom') -->
-      <div v-if="expressionSettingsSnapshot.llmMode === 'custom'" mt-2 flex flex-col gap-2 border-l-2 border-neutral-200 pl-3 dark:border-neutral-700>
+      <div v-else mt-3 flex flex-col gap-3>
         <div
-          v-for="group in expressionSettingsSnapshot.groups"
-          :key="`llm-${group.name}`"
-          flex items-center justify-between
+          v-for="group in config.custom"
+          :key="group.id"
+          class="rounded-lg bg-neutral-50 p-2 dark:bg-neutral-900"
         >
-          <span text-xs text-neutral-600 dark:text-neutral-400>{{ group.name }}</span>
-          <Checkbox
-            :model-value="group.exposedToLlm"
-            @update:model-value="(exposed: boolean) => applyExpressionSettingsCommand({ type: 'set-llm-exposed', name: group.name, exposed })"
-          />
+          <div flex items-center justify-between gap-2>
+            <input
+              :value="group.name"
+              class="min-w-0 flex-1 bg-transparent text-sm font-medium outline-none"
+              :placeholder="t('settings.live2d.expressions.group-name')"
+              @change="expressionGroups.updateCustomGroup(group.id, { name: ($event.target as HTMLInputElement).value })"
+            >
+            <Checkbox
+              :model-value="group.enabled"
+              @update:model-value="(enabled: boolean) => expressionGroups.updateCustomGroup(group.id, { enabled })"
+            />
+            <button type="button" text-neutral-400 @click="expressionGroups.removeCustomGroup(group.id)">
+              ×
+            </button>
+          </div>
+          <label mt-2 block text-xs text-neutral-500>
+            {{ t('settings.live2d.expressions.what') }}
+            <input
+              :value="group.what"
+              class="mt-1 w-full rounded bg-white px-2 py-1 text-sm dark:bg-black"
+              @change="expressionGroups.updateCustomGroup(group.id, { what: ($event.target as HTMLInputElement).value })"
+            >
+          </label>
+          <label mt-2 block text-xs text-neutral-500>
+            {{ t('settings.live2d.expressions.hold') }}
+            <input
+              :value="group.hold"
+              class="mt-1 w-full rounded bg-white px-2 py-1 text-sm dark:bg-black"
+              @change="expressionGroups.updateCustomGroup(group.id, { hold: ($event.target as HTMLInputElement).value })"
+            >
+          </label>
+          <div mt-2 flex flex-wrap items-center gap-1>
+            <button
+              v-for="bind in group.binds"
+              :key="bind.expressionName"
+              type="button"
+              class="rounded-full bg-neutral-200 px-2 py-0.5 text-xs dark:bg-neutral-800"
+              @click="previewExpression(bind.expressionName)"
+            >
+              {{ bind.label || bind.expressionName }}
+              <span class="ml-1 text-neutral-400" @click.stop="expressionGroups.removeCustomBind(group.id, bind.expressionName)">×</span>
+            </button>
+            <Button size="sm" @click="togglePicker(group.id)">
+              {{ t('settings.live2d.expressions.bind') }}
+            </Button>
+          </div>
+          <div v-if="group.binds.length > 1" mt-1 text-xs text-neutral-500>
+            {{ t('settings.live2d.expressions.one-slot') }}
+          </div>
+          <div v-if="pickerKey(group.id)" mt-2 flex flex-col gap-1>
+            <button
+              v-for="name in modelExpressionNames"
+              :key="name"
+              type="button"
+              class="flex items-center justify-between rounded px-2 py-1 text-left text-xs hover:bg-neutral-200 dark:hover:bg-neutral-800"
+              @click="expressionGroups.addCustomBind(group.id, name); previewExpression(name)"
+            >
+              <span>{{ name }}</span>
+            </button>
+          </div>
         </div>
+        <button
+          type="button"
+          class="rounded-lg border border-dashed border-neutral-400 py-2 text-sm text-primary-500"
+          @click="expressionGroups.addCustomGroup()"
+        >
+          {{ t('settings.live2d.expressions.add-group') }}
+        </button>
       </div>
 
-      <!-- Action buttons -->
       <div mt-4 flex gap-2>
         <Button @click="applyExpressionSettingsCommand({ type: 'save-defaults' })">
           {{ t('settings.live2d.expressions.save-default') }}

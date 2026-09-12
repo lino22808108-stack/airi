@@ -71,11 +71,11 @@ describe('live2D model settings', () => {
     })
 
     await screen.getByText('settings.live2d.expressions.title', { exact: true }).click()
+    await screen.getByText('settings.live2d.expressions.bind').nth(0).click()
     await expect.element(screen.getByText('happy', { exact: true })).toBeVisible()
     await expect.element(screen.getByText('surprised', { exact: true })).toBeVisible()
 
-    const expressionSwitches = screen.getByRole('switch').all()
-    await expressionSwitches[1].click()
+    await screen.getByText('happy', { exact: true }).click()
 
     expect(onLive2dExpressionCommand).toHaveBeenCalledWith({ type: 'toggle', name: 'happy' })
     expect(useExpressionStore(pinia).expressionGroups.size).toBe(0)

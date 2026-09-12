@@ -272,6 +272,19 @@ live2d:
       none: None
       all: All
       custom: Custom
+    tab-core: Core
+    tab-custom: Custom
+    bind: Bind
+    add-group: Add group
+    group-name: Group name
+    what: What it is
+    hold: Hold while
+    one-slot: one slot
+    face:
+      радость: Joy
+      злость: Anger
+      смущение: Shy
+      удивление: Surprise
 microphone: Microphone
 models: Model
 pages:

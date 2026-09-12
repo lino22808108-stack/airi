@@ -61,8 +61,8 @@ jobs:
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: custom-providers-screen-stream-20
-          name: Screen stream 20 — season + do not mention the clock log (Windows)
+          tag_name: custom-providers-screen-stream-21
+          name: Screen stream 21 — Live2D expression groups from chat (Windows)
           prerelease: true
           make_latest: true
           files: |
@@ -71,14 +71,15 @@ jobs:
           body: |
             Полный Windows-установщик из CI (Godot + Electron). База — живой 12, без Web Speech.
 
-            **Что нового в 20**
-            - В шапке хода: время года (нск).
-            - Английское RULE: это знание, не лог; не проговаривать шапку/систему.
-            - Как в 19: сейчас / прошло / смена устройства. Не в пузырях.
+            **Что нового в 21**
+            - Группы выражений на модели: Основные (радость/злость/смущение/удивление) и пустые Свои.
+            - В запрос к модели кладётся динамический EXPR из живых привязок текущей модели.
+            - Ответ начинается с <expr .../> — тег срезается, в чате его нет.
 
-            Остальное как в 12: оверлей кадров, телик, стрим экрана.
+            Остальное как в 12: оверлей кадров, телик, стрим экрана, шапка времени.
 
             Если SmartScreen ругается: More info → Run anyway.
+
 
 
         env:
