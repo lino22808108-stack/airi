@@ -61,24 +61,23 @@ jobs:
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: custom-providers-screen-stream-21
-          name: Screen stream 21 — Live2D expression groups from chat (Windows)
+          tag_name: custom-providers-screen-stream-22
+          name: Screen stream 22 — expr tag won't eat replies (Windows)
           prerelease: true
           make_latest: true
           files: |
             apps/stage-tamagotchi/dist/*.exe
             apps/stage-tamagotchi/bundle/*.exe
           body: |
-            Полный Windows-установщик из CI (Godot + Electron). База — живой 12, без Web Speech.
+            Полный Windows-установщик из CI (Godot + Electron). База — живой 12.
 
-            **Что нового в 21**
-            - Группы выражений на модели: Основные (радость/злость/смущение/удивление) и пустые Свои.
-            - В запрос к модели кладётся динамический EXPR из живых привязок текущей модели.
-            - Ответ начинается с <expr .../> — тег срезается, в чате его нет.
-
-            Остальное как в 12: оверлей кадров, телик, стрим экрана, шапка времени.
+            **22**
+            - Починен молчащий чат: кривой `<expr>` больше не прячет весь ответ.
+            - Больше основных эмоций.
+            - Свои группы сворачиваются. Поля подписаны нормально.
 
             Если SmartScreen ругается: More info → Run anyway.
+
 
 
 

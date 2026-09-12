@@ -292,12 +292,24 @@ export const useChatStore = defineStore('chat', () => {
       getSessionMessages: sessionId => chatSession.getSessionMessages(sessionId).map(message => toRaw(message)),
       appendSessionMessage: (sessionId, message) => {
         if (message && 'role' in message && message.role === 'assistant') {
-          const { message: visible, attrs, pending } = stripExprFromMessage(toRaw(message) as StreamingAssistantMessage)
-          if (!exprTagApplied)
-            expressionGroups.applyAttrs(attrs, !attrs && !pending)
-          exprTagApplied = false
-          chatSession.appendSessionMessage(sessionId, visible)
-          return
+          try {
+            const raw = toRaw(message) as StreamingAssistantMessage
+            const { message: visible, attrs, pending } = stripExprFromMessage(raw)
+            if (!exprTagApplied) {
+              try {
+                expressionGroups.applyAttrs(attrs, !attrs && !pending)
+              }
+              catch (error) {
+                console.warn('[expr] apply failed', error)
+              }
+            }
+            exprTagApplied = false
+            chatSession.appendSessionMessage(sessionId, pending ? raw : visible)
+            return
+          }
+          catch (error) {
+            console.warn('[expr] strip failed', error)
+          }
         }
         chatSession.appendSessionMessage(sessionId, message)
       },
@@ -317,16 +329,33 @@ export const useChatStore = defineStore('chat', () => {
     },
     foregroundStream: {
       patch: (message) => {
-        const { message: visible, attrs, pending } = stripExprFromMessage(toRaw(message) as StreamingAssistantMessage)
-        if (attrs && !exprTagApplied) {
-          expressionGroups.applyAttrs(attrs, false)
-          exprTagApplied = true
+        try {
+          const { message: visible, attrs, pending } = stripExprFromMessage(toRaw(message) as StreamingAssistantMessage)
+          if (attrs && !exprTagApplied) {
+            try {
+              expressionGroups.applyAttrs(attrs, false)
+            }
+            catch (error) {
+              console.warn('[expr] apply failed', error)
+            }
+            exprTagApplied = true
+          }
+          const spoken = typeof visible.content === 'string' ? visible.content : ''
+          if (!pending && !attrs && !exprTagApplied && spoken.length > 0) {
+            try {
+              expressionGroups.applyAttrs(null, true)
+            }
+            catch (error) {
+              console.warn('[expr] apply failed', error)
+            }
+            exprTagApplied = true
+          }
+          streamingMessage.value = visible
         }
-        if (!pending && !attrs && !exprTagApplied && (visible.content?.length ?? 0) > 0) {
-          expressionGroups.applyAttrs(null, true)
-          exprTagApplied = true
+        catch (error) {
+          console.warn('[expr] stream strip failed', error)
+          streamingMessage.value = message
         }
-        streamingMessage.value = visible
       },
       reset: () => {
         exprTagApplied = false

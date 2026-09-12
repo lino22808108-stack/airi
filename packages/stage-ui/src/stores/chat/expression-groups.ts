@@ -7,6 +7,7 @@ import { useExpressionStore } from '@proj-airi/stage-ui-live2d'
 
 import {
   emptyExpressionGroupsConfig,
+  emptyFaceBinds,
   EXPR_OFF,
   EXPR_ON,
   FACE_GROUPS,
@@ -26,13 +27,11 @@ export function loadExpressionGroupsConfig(modelId: string): ModelExpressionGrou
     if (!raw)
       return empty
     const parsed = JSON.parse(raw) as Partial<ModelExpressionGroupsConfig>
+    const face = emptyFaceBinds()
+    for (const name of FACE_GROUPS)
+      face[name] = parsed.face?.[name] ?? []
     return {
-      face: {
-        радость: parsed.face?.радость ?? [],
-        злость: parsed.face?.злость ?? [],
-        смущение: parsed.face?.смущение ?? [],
-        удивление: parsed.face?.удивление ?? [],
-      },
+      face,
       custom: Array.isArray(parsed.custom) ? parsed.custom : [],
     }
   }

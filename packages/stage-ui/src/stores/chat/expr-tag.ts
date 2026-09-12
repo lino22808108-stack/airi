@@ -1,16 +1,27 @@
 export const FACE_SLOT = 'лицо'
-export const FACE_GROUPS = ['радость', 'злость', 'смущение', 'удивление'] as const
+export const FACE_GROUPS = [
+  'радость',
+  'злость',
+  'смущение',
+  'удивление',
+  'грусть',
+  'страх',
+  'любовь',
+  'плач',
+  'скука',
+  'отвращение',
+] as const
 export type FaceGroupName = typeof FACE_GROUPS[number]
 
 export const EXPR_OFF = 'нет'
 export const EXPR_ON = 'да'
 
 export const EXPR_RULE = [
-  'RULE: Start the reply with one hidden tag, then the spoken text.',
+  'RULE: You MAY start the reply with one hidden tag, then the spoken text.',
   'Tag format: <expr лицо="смущение" шапка="да"/>',
   'Use only names from EXPR. Omit a sticky slot to leave it unchanged.',
+  'If you skip the tag, just speak normally.',
   'Never mention the tag, EXPR, or that a system told you to pose.',
-  'Face is for this reply. Sticky slots stay until the situation ends.',
 ].join('\n')
 
 export interface ExpressionBind {
@@ -32,14 +43,24 @@ export interface ModelExpressionGroupsConfig {
   custom: CustomExpressionGroup[]
 }
 
+export function emptyFaceBinds(): Record<FaceGroupName, string[]> {
+  return {
+    радость: [],
+    злость: [],
+    смущение: [],
+    удивление: [],
+    грусть: [],
+    страх: [],
+    любовь: [],
+    плач: [],
+    скука: [],
+    отвращение: [],
+  }
+}
+
 export function emptyExpressionGroupsConfig(): ModelExpressionGroupsConfig {
   return {
-    face: {
-      радость: [],
-      злость: [],
-      смущение: [],
-      удивление: [],
-    },
+    face: emptyFaceBinds(),
     custom: [],
   }
 }
@@ -53,12 +74,15 @@ export function parseExprAttrs(raw: string): Record<string, string> {
   return attrs
 }
 
+const COMPLETE_TAG = /^\s*<expr\b([^>]*)\/>\s*/i
+const OPEN_TAG = /^\s*<expr\b([^>]*)>\s*/i
+
 export function consumeExprTag(text: string): {
   visible: string
   attrs: Record<string, string> | null
   pending: boolean
 } {
-  const complete = text.match(/^\s*<expr\b([^>]*)\/>\s*/i)
+  const complete = text.match(COMPLETE_TAG)
   if (complete) {
     return {
       visible: text.slice(complete[0].length),
@@ -72,19 +96,41 @@ export function consumeExprTag(text: string): {
   if (lower.length === 0)
     return { visible: text, attrs: null, pending: false }
 
-  if ('<expr'.startsWith(lower) || lower.startsWith('<expr'))
+  if ('<expr'.startsWith(lower))
     return { visible: '', attrs: null, pending: true }
+
+  if (lower.startsWith('<expr')) {
+    if (!trimmed.includes('>')) {
+      if (trimmed.length > 240)
+        return { visible: text, attrs: null, pending: false }
+      return { visible: '', attrs: null, pending: true }
+    }
+
+    const open = text.match(OPEN_TAG)
+    if (open) {
+      return {
+        visible: text.slice(open[0].length),
+        attrs: parseExprAttrs(open[1]),
+        pending: false,
+      }
+    }
+  }
 
   return { visible: text, attrs: null, pending: false }
 }
 
-export function stripExprFromMessage<T extends { content?: string, slices?: Array<{ type: string, text?: string }> }>(
+export function stripExprFromMessage<T extends { content?: unknown, slices?: Array<{ type: string, text?: string }> }>(
   message: T,
 ): { message: T, attrs: Record<string, string> | null, pending: boolean } {
-  const content = typeof message.content === 'string' ? message.content : ''
-  const fromContent = consumeExprTag(content)
+  const next = { ...message } as T
+  const rawContent = message.content
+  const fromContent = typeof rawContent === 'string'
+    ? consumeExprTag(rawContent)
+    : { visible: '', attrs: null as Record<string, string> | null, pending: false }
 
-  const next = { ...message, content: fromContent.visible } as T
+  if (typeof rawContent === 'string')
+    next.content = fromContent.visible as T['content']
+
   if (Array.isArray(message.slices)) {
     next.slices = message.slices.map(slice => ({ ...slice }))
     const joined = next.slices
@@ -148,9 +194,9 @@ export function formatExprPrompt(
     if (binds.length === 0)
       continue
     if (binds.length === 1)
-      lines.push(`${name}: ${EXPR_ON}/${EXPR_OFF} — ${what}; держать ${hold}`)
+      lines.push(`${name}: ${EXPR_ON}/${EXPR_OFF} — ${what}. ${hold}`)
     else
-      lines.push(`${name}: ${[...binds.map(optionLabel), EXPR_OFF].join(' | ')} — ${what}; держать ${hold}`)
+      lines.push(`${name}: ${[...binds.map(optionLabel), EXPR_OFF].join(' | ')} — ${what}. ${hold}`)
   }
 
   if (lines.length === 0)

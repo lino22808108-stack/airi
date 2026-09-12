@@ -31,11 +31,17 @@ describe('expr tag', () => {
     expect(consumeExprTag('<ex').visible).toBe('')
   })
 
-  it('leaves normal text alone', () => {
-    const result = consumeExprTag('привет')
-    expect(result.pending).toBe(false)
-    expect(result.attrs).toBeNull()
-    expect(result.visible).toBe('привет')
+  it('does not hide a whole reply behind a broken tag', () => {
+    const broken = consumeExprTag('<expr лицо="злость">\nну ты опять слил')
+    expect(broken.pending).toBe(false)
+    expect(broken.attrs).toEqual({ лицо: 'злость' })
+    expect(broken.visible.trim()).toBe('ну ты опять слил')
+  })
+
+  it('stops hiding if the prefix is too long to be a tag', () => {
+    const long = consumeExprTag(`<expr ${'x'.repeat(300)}`)
+    expect(long.pending).toBe(false)
+    expect(long.visible.startsWith('<expr')).toBe(true)
   })
 
   it('strips from slices used by the stream', () => {
@@ -76,7 +82,7 @@ describe('expr tag', () => {
     expect(text).toBe([
       'EXPR',
       'лицо: злость | смущение | нет',
-      'шапка: да/нет — надела шапку; держать пока холодно',
+      'шапка: да/нет — надела шапку. пока холодно',
       '',
       EXPR_RULE,
     ].join('\n'))

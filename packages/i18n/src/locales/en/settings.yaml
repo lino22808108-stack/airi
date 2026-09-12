@@ -277,14 +277,22 @@ live2d:
     bind: Bind
     add-group: Add group
     group-name: Group name
-    what: What it is
-    hold: Hold while
+    what: What this is
+    what-placeholder: e.g. she put a hat on
+    hold: Keep it on while
+    hold-placeholder: while it's cold / while you play; take off when the topic ends
     one-slot: one slot
     face:
       радость: Joy
       злость: Anger
       смущение: Shy
       удивление: Surprise
+      грусть: Sad
+      страх: Fear
+      любовь: Love
+      плач: Cry
+      скука: Bored
+      отвращение: Disgust
 microphone: Microphone
 models: Model
 pages:
