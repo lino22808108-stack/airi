@@ -273,14 +273,12 @@ live2d:
       all: All
       custom: Custom
     tab-core: Core
-    tab-custom: Custom
+    tab-unusual: Unusual
     bind: Bind
-    add-group: Add group
-    group-name: Group name
-    what: What this is
-    what-placeholder: e.g. she put a hat on
-    hold: Keep it on while
-    hold-placeholder: while it's cold / while you play; take off when the topic ends
+    auto-sort: Auto arrange
+    face-section: Face
+    gesture-section: Gestures
+    hand-section: In hand
     one-slot: one slot
     face:
       радость: Joy
@@ -293,6 +291,33 @@ live2d:
       плач: Cry
       скука: Bored
       отвращение: Disgust
+    gesture:
+      кивок: Nod
+      нет: No / refuse
+      думает: Thinking
+      машет: Wave
+      спит: Sleep
+      подмигивает: Wink
+      указывает: Point
+      радуется: Body cheer
+    sticky:
+      головной_убор: Headwear
+      очки: Glasses
+      маска: Mask
+      наушники: Headphones
+      украшение: Head accessory
+      одежда: Coat / jacket
+      шарф: Scarf
+      крылья: Wings
+      хвост: Tail
+      аксессуар: Accessory
+    hand:
+      телефон: Phone
+      микрофон: Mic
+      геймпад: Gamepad
+      еда: Food / drink
+      книга: Book
+      оружие: Weapon
 microphone: Microphone
 models: Model
 pages:

@@ -61,22 +61,23 @@ jobs:
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: custom-providers-screen-stream-22
-          name: Screen stream 22 — expr tag won't eat replies (Windows)
+          tag_name: custom-providers-screen-stream-23
+          name: Screen stream 23 — auto-sort Live2D slots (Windows)
           prerelease: true
           make_latest: true
           files: |
             apps/stage-tamagotchi/dist/*.exe
             apps/stage-tamagotchi/bundle/*.exe
           body: |
-            Полный Windows-установщик из CI (Godot + Electron). База — живой 12.
+            Полный Windows-установщик из CI. База — живой 12.
 
-            **22**
-            - Починен молчащий чат: кривой `<expr>` больше не прячет весь ответ.
-            - Больше основных эмоций.
-            - Свои группы сворачиваются. Поля подписаны нормально.
+            **23**
+            - Вкладка «Необычные» вместо своих: шапка, очки, геймпад и т.д. уже прописаны.
+            - Жесты отдельно от лица. Пары в одном теге.
+            - Кнопка «Разложить самой» раскидывает exp и motion по слотам (Мику — тест).
 
             Если SmartScreen ругается: More info → Run anyway.
+
 
 
 

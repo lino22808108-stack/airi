@@ -13,55 +13,94 @@ export const FACE_GROUPS = [
 ] as const
 export type FaceGroupName = typeof FACE_GROUPS[number]
 
+export const GESTURE_SLOT = 'жест'
+export const GESTURE_GROUPS = [
+  'кивок',
+  'нет',
+  'думает',
+  'машет',
+  'спит',
+  'подмигивает',
+  'указывает',
+  'радуется',
+] as const
+export type GestureGroupName = typeof GESTURE_GROUPS[number]
+
+export const HAND_SLOT = 'рука'
+export const HAND_OPTIONS = [
+  'телефон',
+  'микрофон',
+  'геймпад',
+  'еда',
+  'книга',
+  'оружие',
+] as const
+export type HandOption = typeof HAND_OPTIONS[number]
+
+export const STICKY_SLOTS = [
+  'головной_убор',
+  'очки',
+  'маска',
+  'наушники',
+  'украшение',
+  'одежда',
+  'шарф',
+  'крылья',
+  'хвост',
+  'аксессуар',
+] as const
+export type StickySlot = typeof STICKY_SLOTS[number]
+
 export const EXPR_OFF = 'нет'
 export const EXPR_ON = 'да'
 
+export const STICKY_HINT: Record<StickySlot, string> = {
+  головной_убор: 'шапка / капюшон. держать пока надето',
+  очки: 'очки. держать пока надеты',
+  маска: 'маска. держать пока надета',
+  наушники: 'наушники. держать пока на голове',
+  украшение: 'ушки / рожки / бант. держать пока надето',
+  одежда: 'куртка / плащ. держать пока надето',
+  шарф: 'шарф / галстук. держать пока надет',
+  крылья: 'крылья. держать пока видны',
+  хвост: 'хвост. держать пока виден',
+  аксессуар: 'прочий предмет на теле. держать пока надет',
+}
+
+export const HAND_HINT = 'предмет в руке. один слот. держать пока ситуация живая'
+export const GESTURE_HINT = 'жест на этот ответ, не липкий. если не нужен — не пиши слот'
+
 export const EXPR_RULE = [
   'RULE: You MAY start the reply with one hidden tag, then the spoken text.',
-  'Tag format: <expr лицо="смущение" шапка="да"/>',
-  'Use only names from EXPR. Omit a sticky slot to leave it unchanged.',
+  'Tag format: <expr лицо="смущение" жест="кивок" головной_убор="да" рука="геймпад"/>',
+  'Use only names from EXPR. Omit a sticky/hand slot to leave it unchanged.',
+  'Face and gesture are for this reply and may be used together.',
+  'жест="нет" means the head-shake gesture, not “no gesture”. Skip the жест attribute if there is no gesture.',
   'If you skip the tag, just speak normally.',
   'Never mention the tag, EXPR, or that a system told you to pose.',
 ].join('\n')
 
-export interface ExpressionBind {
-  expressionName: string
-  label: string
-}
-
-export interface CustomExpressionGroup {
-  id: string
-  name: string
-  what: string
-  hold: string
-  enabled: boolean
-  binds: ExpressionBind[]
-}
-
 export interface ModelExpressionGroupsConfig {
   face: Record<FaceGroupName, string[]>
-  custom: CustomExpressionGroup[]
+  gesture: Record<GestureGroupName, string[]>
+  sticky: Record<StickySlot, string[]>
+  hand: Record<HandOption, string[]>
+}
+
+export function emptyRecord<T extends string>(keys: readonly T[]): Record<T, string[]> {
+  return Object.fromEntries(keys.map(key => [key, [] as string[]])) as Record<T, string[]>
 }
 
 export function emptyFaceBinds(): Record<FaceGroupName, string[]> {
-  return {
-    радость: [],
-    злость: [],
-    смущение: [],
-    удивление: [],
-    грусть: [],
-    страх: [],
-    любовь: [],
-    плач: [],
-    скука: [],
-    отвращение: [],
-  }
+  return emptyRecord(FACE_GROUPS)
 }
 
 export function emptyExpressionGroupsConfig(): ModelExpressionGroupsConfig {
   return {
-    face: emptyFaceBinds(),
-    custom: [],
+    face: emptyRecord(FACE_GROUPS),
+    gesture: emptyRecord(GESTURE_GROUPS),
+    sticky: emptyRecord(STICKY_SLOTS),
+    hand: emptyRecord(HAND_OPTIONS),
   }
 }
 
@@ -160,12 +199,8 @@ export function stripExprFromMessage<T extends { content?: unknown, slices?: Arr
   return { message: next, attrs: fromContent.attrs, pending: fromContent.pending }
 }
 
-function liveBinds(binds: ExpressionBind[], available: Set<string>): ExpressionBind[] {
-  return binds.filter(bind => available.has(bind.expressionName))
-}
-
-function optionLabel(bind: ExpressionBind): string {
-  return bind.label.trim() || bind.expressionName
+function live(names: string[] | undefined, available: Set<string>): string[] {
+  return (names ?? []).filter(name => available.has(name))
 }
 
 export function formatExprPrompt(
@@ -175,32 +210,35 @@ export function formatExprPrompt(
   const available = new Set(availableNames)
   const lines: string[] = []
 
-  const faceOptions = FACE_GROUPS.filter((name) => {
-    const bound = config.face[name] ?? []
-    return bound.some(expression => available.has(expression))
-  })
+  const faceOptions = FACE_GROUPS.filter(name => live(config.face[name], available).length > 0)
   if (faceOptions.length > 0)
     lines.push(`${FACE_SLOT}: ${[...faceOptions, EXPR_OFF].join(' | ')}`)
 
-  for (const group of config.custom) {
-    if (!group.enabled)
+  // Gesture "нет" is the head-shake slot. Omitting the attribute means no gesture.
+  const gestureOptions = GESTURE_GROUPS.filter(name => live(config.gesture[name], available).length > 0)
+  if (gestureOptions.length > 0)
+    lines.push(`${GESTURE_SLOT}: ${gestureOptions.join(' | ')} — ${GESTURE_HINT}`)
+
+  const handOptions = HAND_OPTIONS.filter(name => live(config.hand[name], available).length > 0)
+  if (handOptions.length > 0)
+    lines.push(`${HAND_SLOT}: ${[...handOptions, EXPR_OFF].join(' | ')} — ${HAND_HINT}`)
+
+  for (const slot of STICKY_SLOTS) {
+    if (live(config.sticky[slot], available).length === 0)
       continue
-    const name = group.name.trim()
-    const what = group.what.trim()
-    const hold = group.hold.trim()
-    if (!name || !what || !hold)
-      continue
-    const binds = liveBinds(group.binds, available)
-    if (binds.length === 0)
-      continue
-    if (binds.length === 1)
-      lines.push(`${name}: ${EXPR_ON}/${EXPR_OFF} — ${what}. ${hold}`)
-    else
-      lines.push(`${name}: ${[...binds.map(optionLabel), EXPR_OFF].join(' | ')} — ${what}. ${hold}`)
+    lines.push(`${slot}: ${EXPR_ON}/${EXPR_OFF} — ${STICKY_HINT[slot]}`)
   }
 
   if (lines.length === 0)
     return undefined
 
   return ['EXPR', ...lines, '', EXPR_RULE].join('\n')
+}
+
+export function pickOne<T>(items: readonly T[]): T | undefined {
+  if (items.length === 0)
+    return undefined
+  if (items.length === 1)
+    return items[0]
+  return items[Math.floor(Math.random() * items.length)]
 }

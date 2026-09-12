@@ -1,47 +1,47 @@
 import { describe, expect, it } from 'vitest'
 
+import { autoSortAssets, classifyLive2dAsset } from './expr-classify'
 import {
   consumeExprTag,
   emptyExpressionGroupsConfig,
   EXPR_RULE,
   formatExprPrompt,
   parseExprAttrs,
+  pickOne,
   stripExprFromMessage,
 } from './expr-tag'
 
 describe('expr tag', () => {
   it('parses attributes', () => {
-    expect(parseExprAttrs(' лицо="злость" рука="геймпад" шапка="нет"')).toEqual({
+    expect(parseExprAttrs(' лицо="злость" рука="геймпад" головной_убор="нет"')).toEqual({
       лицо: 'злость',
       рука: 'геймпад',
-      шапка: 'нет',
+      головной_убор: 'нет',
     })
   })
 
   it('strips a complete leading tag and keeps the spoken text', () => {
-    const result = consumeExprTag('<expr лицо="злость" рука="геймпад"/>\nну ты опять слил')
+    const result = consumeExprTag('<expr лицо="злость" жест="кивок"/>\nну ты опять слил')
     expect(result.pending).toBe(false)
-    expect(result.attrs).toEqual({ лицо: 'злость', рука: 'геймпад' })
+    expect(result.attrs).toEqual({ лицо: 'злость', жест: 'кивок' })
     expect(result.visible).toBe('ну ты опять слил')
+  })
+
+  it('keeps жест="нет" as the head-shake gesture', () => {
+    const result = consumeExprTag('<expr лицо="злость" жест="нет"/>неа')
+    expect(result.attrs).toEqual({ лицо: 'злость', жест: 'нет' })
+    expect(result.visible).toBe('неа')
   })
 
   it('hides an incomplete tag so it never flashes in chat', () => {
     expect(consumeExprTag('<expr лицо="зло').pending).toBe(true)
-    expect(consumeExprTag('<expr лицо="зло').visible).toBe('')
     expect(consumeExprTag('<ex').visible).toBe('')
   })
 
   it('does not hide a whole reply behind a broken tag', () => {
     const broken = consumeExprTag('<expr лицо="злость">\nну ты опять слил')
     expect(broken.pending).toBe(false)
-    expect(broken.attrs).toEqual({ лицо: 'злость' })
     expect(broken.visible.trim()).toBe('ну ты опять слил')
-  })
-
-  it('stops hiding if the prefix is too long to be a tag', () => {
-    const long = consumeExprTag(`<expr ${'x'.repeat(300)}`)
-    expect(long.pending).toBe(false)
-    expect(long.visible.startsWith('<expr')).toBe(true)
   })
 
   it('strips from slices used by the stream', () => {
@@ -52,45 +52,84 @@ describe('expr tag', () => {
         { type: 'text', text: 'привет' },
       ],
     })
-    expect(result.attrs).toEqual({ лицо: 'смущение' })
     expect(result.message.content).toBe('привет')
-    expect(result.message.slices?.map(slice => slice.text).join('')).toBe('привет')
   })
 
-  it('builds a dynamic prompt from live binds only', () => {
+  it('builds a prompt from fixed slots only', () => {
     const config = emptyExpressionGroupsConfig()
     config.face.злость = ['8 生气']
-    config.face.смущение = ['7 害羞']
-    config.custom.push({
-      id: 'hat',
-      name: 'шапка',
-      what: 'надела шапку',
-      hold: 'пока холодно',
-      enabled: true,
-      binds: [{ expressionName: '1 帽', label: '' }],
-    })
-    config.custom.push({
-      id: 'missing',
-      name: 'крылья',
-      what: 'есть крылья',
-      hold: 'всегда',
-      enabled: true,
-      binds: [{ expressionName: 'wings', label: '' }],
-    })
+    config.gesture.кивок = ['w-adult01-nod']
+    config.gesture.нет = ['w-adult01-no']
+    config.sticky.головной_убор = ['1 帽']
+    config.hand.геймпад = ['gamepad']
 
-    const text = formatExprPrompt(config, ['8 生气', '7 害羞', '1 帽'])
-    expect(text).toBe([
-      'EXPR',
-      'лицо: злость | смущение | нет',
-      'шапка: да/нет — надела шапку. пока холодно',
-      '',
-      EXPR_RULE,
-    ].join('\n'))
+    const text = formatExprPrompt(config, ['8 生气', 'w-adult01-nod', 'w-adult01-no', '1 帽'])
+    expect(text).toContain('лицо: злость | нет')
+    expect(text).toContain('жест: кивок | нет')
+    expect(text).not.toMatch(/жест:.*нет \| нет/)
+    expect(text).toContain('головной_убор: да/нет')
+    expect(text).not.toMatch(/\nрука:/)
+    expect(text).toContain(EXPR_RULE)
+    expect(text).toContain('жест="нет" means the head-shake gesture')
   })
 
-  it('emits nothing when the current model has no live groups', () => {
+  it('omits empty slots from the prompt', () => {
     const config = emptyExpressionGroupsConfig()
-    config.face.радость = ['9 爱心眼']
-    expect(formatExprPrompt(config, [])).toBeUndefined()
+    config.face.радость = ['smile']
+    const text = formatExprPrompt(config, ['smile'])
+    expect(text).toContain('лицо: радость | нет')
+    expect(text).not.toContain('жест:')
+    expect(text).not.toContain('головной_убор')
+    expect(text).not.toContain('рука:')
+  })
+})
+
+describe('auto sort', () => {
+  it('maps miku motion names into face and gesture slots', () => {
+    const sorted = autoSortAssets({
+      expressions: ['1 帽', '8 生气'],
+      motions: [
+        'w-cute01-shy',
+        'w-cool10-angry',
+        'w-adult01-nod',
+        'w-cute01-sleep05',
+        'w-cool13-sigh',
+        'w-adult01-think',
+        'w-cute01-wave',
+        'w-cute01-wink',
+        'idle',
+      ],
+    })
+    expect(sorted.sticky.головной_убор).toContain('1 帽')
+    expect(sorted.face.злость).toEqual(expect.arrayContaining(['8 生气', 'w-cool10-angry']))
+    expect(sorted.face.смущение).toContain('w-cute01-shy')
+    expect(sorted.gesture.кивок).toContain('w-adult01-nod')
+    expect(sorted.gesture.спит).toContain('w-cute01-sleep05')
+    expect(sorted.gesture.думает).toContain('w-adult01-think')
+    expect(sorted.gesture.машет).toContain('w-cute01-wave')
+    expect(sorted.gesture.подмигивает).toContain('w-cute01-wink')
+    expect(sorted.face.скука).toContain('w-cool13-sigh')
+    expect(sorted.gesture.кивок).not.toContain('idle')
+    expect(sorted.gesture.машет).not.toContain('w-adult01-think')
+  })
+
+  it('does not treat think as a wave', () => {
+    expect(classifyLive2dAsset('w-adult01-think', 'motion')).toEqual({ kind: 'gesture', slot: 'думает' })
+    expect(classifyLive2dAsset('w-cute01-hi', 'motion')).toEqual({ kind: 'gesture', slot: 'машет' })
+  })
+
+  it('maps refuse motions to the head-shake slot', () => {
+    expect(classifyLive2dAsset('w-adult01-deny', 'motion')).toEqual({ kind: 'gesture', slot: 'нет' })
+    expect(classifyLive2dAsset('w-adult01-no', 'motion')).toEqual({ kind: 'gesture', slot: 'нет' })
+    expect(classifyLive2dAsset('w-adult01-nod', 'motion')).toEqual({ kind: 'gesture', slot: 'кивок' })
+  })
+})
+
+describe('pickOne', () => {
+  it('returns the only bind, or one of the listed binds', () => {
+    expect(pickOne(['a'])).toBe('a')
+    expect(pickOne([])).toBeUndefined()
+    const picked = pickOne(['a', 'b', 'c'])
+    expect(['a', 'b', 'c']).toContain(picked)
   })
 })

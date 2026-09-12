@@ -15,7 +15,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import MagicMotionSettings from '../../../../features/motions/live2d/components/magic-settings.vue'
-import { FACE_GROUPS } from '../../../../stores/chat/expr-tag'
+import { FACE_GROUPS, GESTURE_GROUPS, HAND_OPTIONS, STICKY_SLOTS } from '../../../../stores/chat/expr-tag'
 import { useExpressionGroupsStore } from '../../../../stores/chat/expression-groups'
 
 import { PropertyPoint } from '../../../data-pane'
@@ -75,11 +75,23 @@ const {
 const expressionStore = useExpressionStore()
 const expressionGroups = useExpressionGroupsStore()
 const { config, pickerFor } = storeToRefs(expressionGroups)
-const expressionTab = ref<'core' | 'custom'>('core')
-const expandedCustom = ref<string[]>([])
+const expressionTab = ref<'core' | 'unusual'>('core')
 const expressionSettingsSnapshot = computed(() => props.runtimeSnapshot.live2dExpressions ?? expressionStore.settingsSnapshot)
 const usesRemoteExpressionRuntime = computed(() => props.runtimeSnapshot.live2dExpressions != null)
 const modelExpressionNames = computed(() => expressionSettingsSnapshot.value.groups.map(group => group.name))
+const modelMotionNames = computed(() => [...new Set((live2d.availableMotions ?? []).map(motion => motion.motionName))])
+const facePickerNames = computed(() => [...new Set([...modelExpressionNames.value, ...modelMotionNames.value])])
+
+function previewBind(name: string) {
+  if (modelExpressionNames.value.includes(name))
+    previewExpression(name)
+  else
+    expressionGroups.playMotion(name)
+}
+
+function autoSortSlots() {
+  expressionGroups.autoSort()
+}
 
 watch(() => props.runtimeSnapshot.modelId, (modelId) => {
   if (modelId)
@@ -161,17 +173,6 @@ function pickerKey(target: string) {
 
 function togglePicker(target: string) {
   pickerFor.value = pickerFor.value === target ? null : target
-}
-
-function toggleCustomExpanded(id: string) {
-  expandedCustom.value = expandedCustom.value.includes(id)
-    ? expandedCustom.value.filter(item => item !== id)
-    : [...expandedCustom.value, id]
-}
-
-function addCustomGroup() {
-  const id = expressionGroups.addCustomGroup()
-  expandedCustom.value = [...expandedCustom.value, id]
 }
 
 // Get available runtime motions from the model
@@ -791,12 +792,15 @@ function handleMotionSelect(selectedMotionPath: string | number | undefined) {
     <div v-if="!live2dExpressionEnabled" py-2 text-xs text-neutral-500 dark:text-neutral-400>
       {{ t('settings.live2d.expressions.sdk-preset-preserved-notice') }}
     </div>
-    <template v-else-if="expressionSettingsSnapshot.groups.length === 0">
+    <template v-else-if="expressionSettingsSnapshot.groups.length === 0 && modelMotionNames.length === 0">
       <div py-2 text-sm text-neutral-500 dark:text-neutral-400>
         {{ t('settings.live2d.expressions.no-expression') }}
       </div>
     </template>
     <template v-else>
+      <Button class="mt-3 w-full" @click="autoSortSlots">
+        {{ t('settings.live2d.expressions.auto-sort') }}
+      </Button>
       <div mt-3 flex gap-4 border-b border-neutral-200 text-sm dark:border-neutral-700>
         <button
           :class="[expressionTab === 'core' ? 'border-primary-400 text-primary-500 border-b-2 pb-1' : 'text-neutral-500 pb-1']"
@@ -806,18 +810,19 @@ function handleMotionSelect(selectedMotionPath: string | number | undefined) {
           {{ t('settings.live2d.expressions.tab-core') }}
         </button>
         <button
-          :class="[expressionTab === 'custom' ? 'border-primary-400 text-primary-500 border-b-2 pb-1' : 'text-neutral-500 pb-1']"
+          :class="[expressionTab === 'unusual' ? 'border-primary-400 text-primary-500 border-b-2 pb-1' : 'text-neutral-500 pb-1']"
           type="button"
-          @click="expressionTab = 'custom'"
+          @click="expressionTab = 'unusual'"
         >
-          {{ t('settings.live2d.expressions.tab-custom') }}
+          {{ t('settings.live2d.expressions.tab-unusual') }}
         </button>
       </div>
 
       <div v-if="expressionTab === 'core'" mt-3 flex flex-col gap-2>
+        <div text-xs text-neutral-500>{{ t('settings.live2d.expressions.face-section') }}</div>
         <div
           v-for="group in FACE_GROUPS"
-          :key="group"
+          :key="`face-${group}`"
           class="rounded-lg bg-neutral-50 p-2 dark:bg-neutral-900"
         >
           <div flex items-center justify-between gap-2>
@@ -832,117 +837,136 @@ function handleMotionSelect(selectedMotionPath: string | number | undefined) {
               :key="name"
               type="button"
               class="rounded-full bg-neutral-200 px-2 py-0.5 text-xs dark:bg-neutral-800"
-              @click="previewExpression(name)"
+              @click="previewBind(name)"
             >
               {{ name }}
-              <span
-                class="ml-1 text-neutral-400"
-                @click.stop="expressionGroups.removeFaceBind(group, name)"
-              >×</span>
+              <span class="ml-1 text-neutral-400" @click.stop="expressionGroups.removeFaceBind(group, name)">×</span>
             </button>
           </div>
-          <div v-if="pickerKey(`face:${group}`)" mt-2 flex flex-col gap-1>
+          <div v-if="pickerKey(`face:${group}`)" mt-2 flex max-h-48 flex-col gap-1 overflow-auto>
             <button
-              v-for="name in modelExpressionNames"
+              v-for="name in facePickerNames"
               :key="name"
               type="button"
               class="flex items-center justify-between rounded px-2 py-1 text-left text-xs hover:bg-neutral-200 dark:hover:bg-neutral-800"
-              @click="expressionGroups.addFaceBind(group, name); previewExpression(name)"
+              @click="expressionGroups.addFaceBind(group, name); previewBind(name)"
             >
               <span>{{ name }}</span>
-              <span v-if="(config.face[group] || []).includes(name)" text-primary-500>✓</span>
+            </button>
+          </div>
+        </div>
+
+        <div mt-2 text-xs text-neutral-500>{{ t('settings.live2d.expressions.gesture-section') }}</div>
+        <div
+          v-for="group in GESTURE_GROUPS"
+          :key="`gesture-${group}`"
+          class="rounded-lg bg-neutral-50 p-2 dark:bg-neutral-900"
+        >
+          <div flex items-center justify-between gap-2>
+            <div text-sm font-medium>{{ t(`settings.live2d.expressions.gesture.${group}`) }}</div>
+            <Button size="sm" @click="togglePicker(`gesture:${group}`)">
+              {{ t('settings.live2d.expressions.bind') }}
+            </Button>
+          </div>
+          <div v-if="(config.gesture[group] || []).length" mt-2 flex flex-wrap gap-1>
+            <button
+              v-for="name in config.gesture[group]"
+              :key="name"
+              type="button"
+              class="rounded-full bg-neutral-200 px-2 py-0.5 text-xs dark:bg-neutral-800"
+              @click="previewBind(name)"
+            >
+              {{ name }}
+              <span class="ml-1 text-neutral-400" @click.stop="expressionGroups.removeGestureBind(group, name)">×</span>
+            </button>
+          </div>
+          <div v-if="pickerKey(`gesture:${group}`)" mt-2 flex max-h-48 flex-col gap-1 overflow-auto>
+            <button
+              v-for="name in modelMotionNames"
+              :key="name"
+              type="button"
+              class="flex items-center justify-between rounded px-2 py-1 text-left text-xs hover:bg-neutral-200 dark:hover:bg-neutral-800"
+              @click="expressionGroups.addGestureBind(group, name); previewBind(name)"
+            >
+              <span>{{ name }}</span>
             </button>
           </div>
         </div>
       </div>
 
-      <div v-else mt-3 flex flex-col gap-3>
+      <div v-else mt-3 flex flex-col gap-2>
         <div
-          v-for="group in config.custom"
-          :key="group.id"
+          v-for="slot in STICKY_SLOTS"
+          :key="`sticky-${slot}`"
           class="rounded-lg bg-neutral-50 p-2 dark:bg-neutral-900"
         >
           <div flex items-center justify-between gap-2>
+            <div text-sm font-medium>{{ t(`settings.live2d.expressions.sticky.${slot}`) }}</div>
+            <Button size="sm" @click="togglePicker(`sticky:${slot}`)">
+              {{ t('settings.live2d.expressions.bind') }}
+            </Button>
+          </div>
+          <div v-if="(config.sticky[slot] || []).length" mt-2 flex flex-wrap gap-1>
             <button
+              v-for="name in config.sticky[slot]"
+              :key="name"
               type="button"
-              class="min-w-0 flex flex-1 items-center gap-2 text-left"
-              @click="toggleCustomExpanded(group.id)"
+              class="rounded-full bg-neutral-200 px-2 py-0.5 text-xs dark:bg-neutral-800"
+              @click="previewBind(name)"
             >
-              <span class="text-neutral-500">{{ expandedCustom.includes(group.id) ? '▾' : '▸' }}</span>
-              <span class="truncate text-sm font-medium">{{ group.name || t('settings.live2d.expressions.group-name') }}</span>
-              <span v-if="group.binds.length" class="truncate text-xs text-neutral-500">{{ group.binds.map(bind => bind.label || bind.expressionName).join(', ') }}</span>
-            </button>
-            <Checkbox
-              :model-value="group.enabled"
-              @update:model-value="(enabled: boolean) => expressionGroups.updateCustomGroup(group.id, { enabled })"
-            />
-            <button type="button" text-neutral-400 @click="expressionGroups.removeCustomGroup(group.id)">
-              ×
+              {{ name }}
+              <span class="ml-1 text-neutral-400" @click.stop="expressionGroups.removeStickyBind(slot, name)">×</span>
             </button>
           </div>
-          <div v-if="expandedCustom.includes(group.id)">
-            <label mt-2 block text-xs text-neutral-500>
-              {{ t('settings.live2d.expressions.what') }}
-              <input
-                :value="group.what"
-                class="mt-1 w-full rounded bg-white px-2 py-1 text-sm dark:bg-black"
-                :placeholder="t('settings.live2d.expressions.what-placeholder')"
-                @change="expressionGroups.updateCustomGroup(group.id, { what: ($event.target as HTMLInputElement).value })"
-              >
-            </label>
-            <label mt-2 block text-xs text-neutral-500>
-              {{ t('settings.live2d.expressions.hold') }}
-              <input
-                :value="group.hold"
-                class="mt-1 w-full rounded bg-white px-2 py-1 text-sm dark:bg-black"
-                :placeholder="t('settings.live2d.expressions.hold-placeholder')"
-                @change="expressionGroups.updateCustomGroup(group.id, { hold: ($event.target as HTMLInputElement).value })"
-              >
-            </label>
-            <input
-              :value="group.name"
-              class="mt-2 w-full rounded bg-white px-2 py-1 text-sm dark:bg-black"
-              :placeholder="t('settings.live2d.expressions.group-name')"
-              @change="expressionGroups.updateCustomGroup(group.id, { name: ($event.target as HTMLInputElement).value })"
+          <div v-if="pickerKey(`sticky:${slot}`)" mt-2 flex max-h-48 flex-col gap-1 overflow-auto>
+            <button
+              v-for="name in modelExpressionNames"
+              :key="name"
+              type="button"
+              class="rounded px-2 py-1 text-left text-xs hover:bg-neutral-200 dark:hover:bg-neutral-800"
+              @click="expressionGroups.addStickyBind(slot, name); previewBind(name)"
             >
-            <div mt-2 flex flex-wrap items-center gap-1>
-              <button
-                v-for="bind in group.binds"
-                :key="bind.expressionName"
-                type="button"
-                class="rounded-full bg-neutral-200 px-2 py-0.5 text-xs dark:bg-neutral-800"
-                @click="previewExpression(bind.expressionName)"
-              >
-                {{ bind.label || bind.expressionName }}
-                <span class="ml-1 text-neutral-400" @click.stop="expressionGroups.removeCustomBind(group.id, bind.expressionName)">×</span>
-              </button>
-              <Button size="sm" @click="togglePicker(group.id)">
-                {{ t('settings.live2d.expressions.bind') }}
-              </Button>
-            </div>
-            <div v-if="group.binds.length > 1" mt-1 text-xs text-neutral-500>
-              {{ t('settings.live2d.expressions.one-slot') }}
-            </div>
-            <div v-if="pickerKey(group.id)" mt-2 flex flex-col gap-1>
-              <button
-                v-for="name in modelExpressionNames"
-                :key="name"
-                type="button"
-                class="flex items-center justify-between rounded px-2 py-1 text-left text-xs hover:bg-neutral-200 dark:hover:bg-neutral-800"
-                @click="expressionGroups.addCustomBind(group.id, name); previewExpression(name)"
-              >
-                <span>{{ name }}</span>
-              </button>
-            </div>
+              {{ name }}
+            </button>
           </div>
         </div>
-        <button
-          type="button"
-          class="rounded-lg border border-dashed border-neutral-400 py-2 text-sm text-primary-500"
-          @click="addCustomGroup()"
+
+        <div mt-2 text-xs text-neutral-500>{{ t('settings.live2d.expressions.hand-section') }}</div>
+        <div
+          v-for="slot in HAND_OPTIONS"
+          :key="`hand-${slot}`"
+          class="rounded-lg bg-neutral-50 p-2 dark:bg-neutral-900"
         >
-          {{ t('settings.live2d.expressions.add-group') }}
-        </button>
+          <div flex items-center justify-between gap-2>
+            <div text-sm font-medium>{{ t(`settings.live2d.expressions.hand.${slot}`) }}</div>
+            <Button size="sm" @click="togglePicker(`hand:${slot}`)">
+              {{ t('settings.live2d.expressions.bind') }}
+            </Button>
+          </div>
+          <div v-if="(config.hand[slot] || []).length" mt-2 flex flex-wrap gap-1>
+            <button
+              v-for="name in config.hand[slot]"
+              :key="name"
+              type="button"
+              class="rounded-full bg-neutral-200 px-2 py-0.5 text-xs dark:bg-neutral-800"
+              @click="previewBind(name)"
+            >
+              {{ name }}
+              <span class="ml-1 text-neutral-400" @click.stop="expressionGroups.removeHandBind(slot, name)">×</span>
+            </button>
+          </div>
+          <div v-if="pickerKey(`hand:${slot}`)" mt-2 flex max-h-48 flex-col gap-1 overflow-auto>
+            <button
+              v-for="name in modelExpressionNames"
+              :key="name"
+              type="button"
+              class="rounded px-2 py-1 text-left text-xs hover:bg-neutral-200 dark:hover:bg-neutral-800"
+              @click="expressionGroups.addHandBind(slot, name); previewBind(name)"
+            >
+              {{ name }}
+            </button>
+          </div>
+        </div>
       </div>
 
       <div mt-4 flex gap-2>
