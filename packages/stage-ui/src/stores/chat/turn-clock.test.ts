@@ -6,7 +6,9 @@ import {
   formatTurnClock,
   nskDayPeriod,
   nskParts,
+  nskSeason,
   resetTurnClockSurfaces,
+  TURN_CLOCK_RULE,
 } from './turn-clock'
 
 function nskMs(isoLocal: string): number {
@@ -47,7 +49,15 @@ describe('turn clock header', () => {
     expect(formatSurfaceChange('phone', 'pc')).toBe('с телефона на пк')
   })
 
-  it('always emits three lines', () => {
+  it('labels season from NSK month', () => {
+    expect(nskSeason(3)).toBe('весна')
+    expect(nskSeason(8)).toBe('лето')
+    expect(nskSeason(9)).toBe('осень')
+    expect(nskSeason(12)).toBe('зима')
+    expect(nskSeason(1)).toBe('зима')
+  })
+
+  it('always emits three fact lines plus a stable English rule', () => {
     const text = formatTurnClock({
       now: nskMs('2026-09-12T12:00:00'),
       surface: 'phone',
@@ -55,9 +65,10 @@ describe('turn clock header', () => {
       previousSurface: 'pc',
     })
     expect(text).toBe([
-      'сейчас: 2026-09-12 сб нск 12:00 (полдень) · телефон',
+      'сейчас: 2026-09-12 сб нск 12:00 (полдень, осень) · телефон',
       'прошло: 8ч 43мин (с последнего сообщения)',
       'смена: с пк на телефон',
+      TURN_CLOCK_RULE,
     ].join('\n'))
   })
 })

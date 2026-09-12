@@ -1,3 +1,5 @@
+export const TURN_CLOCK_RULE = 'RULE: This is knowledge you already have (time, season, silence, device). Never mention a log, header, system message, or that this was sent to you. If you notice a long gap, night, or a device switch — say it as yourself, not as reading a log.'
+
 export const NSK_TIME_ZONE = 'Asia/Novosibirsk'
 
 export type ChatClientSurface = 'pc' | 'phone'
@@ -53,6 +55,16 @@ export function nskDayPeriod(hour: number): string {
   return 'ночь'
 }
 
+export function nskSeason(month: number): string {
+  if (month >= 3 && month <= 5)
+    return 'весна'
+  if (month >= 6 && month <= 8)
+    return 'лето'
+  if (month >= 9 && month <= 11)
+    return 'осень'
+  return 'зима'
+}
+
 export function formatElapsed(previousAt: number | undefined, now: number): string {
   if (previousAt == null)
     return 'нет'
@@ -87,9 +99,10 @@ export function formatTurnClock(input: TurnClockInput): string {
   const time = `${String(parts.hour).padStart(2, '0')}:${String(parts.minute).padStart(2, '0')}`
 
   return [
-    `сейчас: ${date} ${parts.weekday} нск ${time} (${nskDayPeriod(parts.hour)}) · ${formatSurfaceLabel(input.surface)}`,
+    `сейчас: ${date} ${parts.weekday} нск ${time} (${nskDayPeriod(parts.hour)}, ${nskSeason(parts.month)}) · ${formatSurfaceLabel(input.surface)}`,
     `прошло: ${formatElapsed(input.previousAt, input.now)} (с последнего сообщения)`,
     `смена: ${formatSurfaceChange(input.previousSurface, input.surface)}`,
+    TURN_CLOCK_RULE,
   ].join('\n')
 }
 

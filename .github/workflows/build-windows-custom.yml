@@ -61,8 +61,8 @@ jobs:
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: custom-providers-screen-stream-19
-          name: Screen stream 19 — turn clock NSK + device (Windows)
+          tag_name: custom-providers-screen-stream-20
+          name: Screen stream 20 — season + do not mention the clock log (Windows)
           prerelease: true
           make_latest: true
           files: |
@@ -71,17 +71,15 @@ jobs:
           body: |
             Полный Windows-установщик из CI (Godot + Electron). База — живой 12, без Web Speech.
 
-            **Что нового в 19**
-            - В запрос к модели каждый ход кладётся шапка (не в пузыри чата):
-              сейчас (нск, день недели, время суток) · пк/телефон
-              прошло с последнего сообщения
-              смена устройства: нет / с пк на телефон / с телефона на пк
-            - Устройство ставит клиент: десктоп всегда пк.
-            - Web Speech STT после 12 не включён — он ломал сцену.
+            **Что нового в 20**
+            - В шапке хода: время года (нск).
+            - Английское RULE: это знание, не лог; не проговаривать шапку/систему.
+            - Как в 19: сейчас / прошло / смена устройства. Не в пузырях.
 
             Остальное как в 12: оверлей кадров, телик, стрим экрана.
 
             Если SmartScreen ругается: More info → Run anyway.
+
 
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
