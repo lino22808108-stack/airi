@@ -29,7 +29,8 @@ import { resolveLlmTools } from './ai/chat-llm/tool-resolver'
 import { useLlmToolsStore } from './ai/chat-llm/tools'
 import { useLlmToolsetPromptsStore } from './ai/chat-llm/toolset-prompts'
 import { useAuthStore } from './auth'
-import { createMinecraftContext, createRuntimePromptContext, createUserAccountContext } from './chat/context-providers'
+import { createMinecraftContext, createRuntimePromptContext, createTurnClockContext, createUserAccountContext } from './chat/context-providers'
+import { resolveChatClientSurface } from './chat/chat-client-surface'
 import { useChatContextStore } from './chat/context-store'
 import { useChatSessionStore } from './chat/session-store'
 import { useChatStreamStore } from './chat/stream-store'
@@ -316,6 +317,11 @@ export const useChatStore = defineStore('chat', () => {
     getSystemPromptSupplement: () => llmToolsetPromptsStore.activeToolsetPrompt,
     runtimeContextProviders: [
       () => createRuntimePromptContext(runtimePrompt.value),
+      () => createTurnClockContext({
+        sessionId: activeSessionId.value,
+        surface: resolveChatClientSurface(),
+        messages: chatSession.getSessionMessages(activeSessionId.value),
+      }),
       createMinecraftContext,
     ],
     createId: nanoid,

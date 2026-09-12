@@ -61,21 +61,27 @@ jobs:
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: custom-providers-screen-stream-12
-          name: Screen stream 12 — same panel size, frames fill it (Windows)
+          tag_name: custom-providers-screen-stream-19
+          name: Screen stream 19 — turn clock NSK + device (Windows)
           prerelease: true
           make_latest: true
           files: |
             apps/stage-tamagotchi/dist/*.exe
             apps/stage-tamagotchi/bundle/*.exe
           body: |
-            Полный Windows-установщик из CI (Godot + Electron), с живым стримом экрана.
+            Полный Windows-установщик из CI (Godot + Electron). База — живой 12, без Web Speech.
 
-            **Что нового в 12**
-            - Окошко превью того же размера, что с подписями. Текста нет — кадры занимают всё место.
+            **Что нового в 19**
+            - В запрос к модели каждый ход кладётся шапка (не в пузыри чата):
+              сейчас (нск, день недели, время суток) · пк/телефон
+              прошло с последнего сообщения
+              смена устройства: нет / с пк на телефон / с телефона на пк
+            - Устройство ставит клиент: десктоп всегда пк.
+            - Web Speech STT после 12 не включён — он ломал сцену.
 
-            Остальное как в 10: телик в столбике между микро и динамиком, меню вверх, кадры внизу по центру.
+            Остальное как в 12: оверлей кадров, телик, стрим экрана.
 
             Если SmartScreen ругается: More info → Run anyway.
+
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
