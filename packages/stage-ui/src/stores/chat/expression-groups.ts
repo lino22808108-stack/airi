@@ -6,13 +6,15 @@ import type {
   StickySlot,
 } from './expr-tag'
 
-import { useExpressionStore, useLive2dParams } from '@proj-airi/stage-ui-live2d'
 import { defineStore } from 'pinia'
 import { computed, ref, watch } from 'vue'
+
+import { useExpressionStore, useLive2dParams } from '@proj-airi/stage-ui-live2d'
 
 import { useSettingsStageModel } from '../settings/stage-model'
 import { autoSortAssets } from './expr-classify'
 import { sortAssetsWithLlm } from './expr-llm-sort'
+
 import {
   emptyExpressionGroupsConfig,
   emptyRecord,
@@ -28,6 +30,7 @@ import {
   resolveSlotOrName,
   STICKY_SLOTS,
 } from './expr-tag'
+
 
 function persistenceKey(modelId: string): string {
   return `expression-groups:${modelId}`

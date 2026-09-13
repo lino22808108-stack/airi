@@ -153,7 +153,7 @@ export function autoSortAssets(input: {
 }
 
 function extractJsonObject(raw: string): unknown | null {
-  const fence = raw.match(/```(?:json)?\n?([\s\S]*?)```/i)
+  const fence = raw.match(/```(?:json)?(?:\r?\n)?([^`]*)```/i)
   const text = (fence?.[1] ?? raw).trim()
   const start = text.indexOf('{')
   const end = text.lastIndexOf('}')

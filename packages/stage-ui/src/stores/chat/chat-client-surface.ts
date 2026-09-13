@@ -1,6 +1,6 @@
-import type { ChatClientSurface } from './turn-clock'
-
 import { isStageTamagotchi } from '@proj-airi/stage-shared'
+
+import type { ChatClientSurface } from './turn-clock'
 
 /** Tamagotchi/Electron is always PC. A mobile UA outside Electron is phone. */
 export function resolveChatClientSurface(): ChatClientSurface {

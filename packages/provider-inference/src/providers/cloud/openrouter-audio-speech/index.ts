@@ -2,8 +2,8 @@ import { toWavFromPCM16 } from '@proj-airi/audio/encoding'
 import { z } from 'zod'
 
 import { defineProvider } from '../../registry'
-import { createAudioProvider } from '../openai-audio'
 import { OPENROUTER_ATTRIBUTION_HEADERS } from '../openrouter-ai'
+import { createAudioProvider } from '../openai-audio'
 import { isChatAudioModel } from '../speech-fetch'
 
 const DEFAULT_BASE_URL = 'https://openrouter.ai/api/v1/'
