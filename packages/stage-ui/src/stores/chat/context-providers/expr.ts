@@ -5,6 +5,7 @@ import { nanoid } from 'nanoid'
 
 import { useExpressionStore, useLive2dParams } from '@proj-airi/stage-ui-live2d'
 
+import { useSettingsStageModel } from '../../settings/stage-model'
 import { formatExprPrompt } from '../expr-tag'
 import { loadExpressionGroupsConfig } from '../expression-groups'
 
@@ -14,14 +15,18 @@ export function createExprGroupsContext(): ContextMessage | undefined {
   try {
     const expressionStore = useExpressionStore()
     const live2d = useLive2dParams()
-    if (!expressionStore.modelId)
+    const expressions = [...expressionStore.expressionGroups.keys()]
+    const motions = [...new Set(live2d.availableMotions.map(motion => motion.motionName))]
+    const available = [...new Set([...expressions, ...motions])]
+    if (available.length === 0)
       return undefined
 
-    const available = [
-      ...expressionStore.expressionGroups.keys(),
-      ...live2d.availableMotions.map(motion => motion.motionName),
-    ]
-    const text = formatExprPrompt(loadExpressionGroupsConfig(expressionStore.modelId), available)
+    const modelId = expressionStore.modelId || useSettingsStageModel().stageModelSelected
+    const text = formatExprPrompt(
+      loadExpressionGroupsConfig(modelId),
+      available,
+      { expressions, motions },
+    )
     if (!text)
       return undefined
 

@@ -1,7 +1,8 @@
-import type { FaceGroupName, GestureGroupName, HandOption, StickySlot } from './expr-tag'
+import type { FaceGroupName, GestureGroupName, HandOption, ModelExpressionGroupsConfig, StickySlot } from './expr-tag'
 
 import {
   emptyExpressionGroupsConfig,
+  emptyRecord,
   FACE_GROUPS,
   GESTURE_GROUPS,
   HAND_OPTIONS,
@@ -149,6 +150,120 @@ export function autoSortAssets(input: {
   }
 
   return next
+}
+
+function extractJsonObject(raw: string): unknown | null {
+  const fence = raw.match(/```(?:json)?\s*([\s\S]*?)```/i)
+  const text = (fence?.[1] ?? raw).trim()
+  const start = text.indexOf('{')
+  const end = text.lastIndexOf('}')
+  if (start < 0 || end <= start)
+    return null
+  try {
+    return JSON.parse(text.slice(start, end + 1))
+  }
+  catch {
+    return null
+  }
+}
+
+function takeNamedLists(
+  source: unknown,
+  keys: readonly string[],
+  allowed: Set<string>,
+  used: Set<string>,
+): { record: Record<string, string[]>, placed: number } {
+  const record = emptyRecord(keys)
+  let placed = 0
+  if (!source || typeof source !== 'object')
+    return { record, placed }
+  const src = source as Record<string, unknown>
+  for (const key of keys) {
+    const value = src[key]
+    if (!Array.isArray(value))
+      continue
+    for (const item of value) {
+      if (typeof item !== 'string' || !allowed.has(item) || used.has(item))
+        continue
+      record[key].push(item)
+      used.add(item)
+      placed++
+    }
+  }
+  return { record, placed }
+}
+
+export function parseLlmSortResult(raw: string, allowedNames: string[]): ModelExpressionGroupsConfig | null {
+  const json = extractJsonObject(raw)
+  if (!json || typeof json !== 'object')
+    return null
+
+  const allowed = new Set(allowedNames)
+  const used = new Set<string>()
+  const obj = json as Record<string, unknown>
+  const next = emptyExpressionGroupsConfig()
+
+  const face = takeNamedLists(obj.face, FACE_GROUPS, allowed, used)
+  const gesture = takeNamedLists(obj.gesture, GESTURE_GROUPS, allowed, used)
+  const sticky = takeNamedLists(obj.sticky, STICKY_SLOTS, allowed, used)
+  const hand = takeNamedLists(obj.hand, HAND_OPTIONS, allowed, used)
+  const placed = face.placed + gesture.placed + sticky.placed + hand.placed
+  if (placed === 0)
+    return null
+
+  next.face = face.record as ModelExpressionGroupsConfig['face']
+  next.gesture = gesture.record as ModelExpressionGroupsConfig['gesture']
+  next.sticky = sticky.record as ModelExpressionGroupsConfig['sticky']
+  next.hand = hand.record as ModelExpressionGroupsConfig['hand']
+  return next
+}
+
+function formatGuesses(guess: ReturnType<typeof autoSortAssets>): string {
+  const lines: string[] = []
+  function dump(kind: string, record: Record<string, string[]>) {
+    for (const [slot, names] of Object.entries(record)) {
+      if (names.length === 0)
+        continue
+      lines.push(`${kind}.${slot}: ${names.join(', ')}`)
+    }
+  }
+  dump('лицо', guess.face)
+  dump('жест', guess.gesture)
+  dump('липкое', guess.sticky)
+  dump('рука', guess.hand)
+  return lines.length > 0 ? lines.join('\n') : '(none)'
+}
+
+export function buildSortPrompt(input: {
+  expressions: string[]
+  motions: string[]
+}): string {
+  const guess = autoSortAssets(input)
+  return [
+    'Sort Live2D asset NAMES into fixed slots.',
+    'If a name is unclear (idle, f01, exp_2, Param8, numbers only), omit it.',
+    'Do not invent names. Each name goes to at most one slot.',
+    'Motions that are facial emotions go to face. Nod/wave/think/sleep/wink go to gesture.',
+    'Hats, glasses, clothes go to sticky. Held objects go to hand.',
+    'Return JSON only, no markdown.',
+    '',
+    `face slots: ${FACE_GROUPS.join(', ')}`,
+    `gesture slots: ${GESTURE_GROUPS.join(', ')} (нет = head-shake, not "off")`,
+    `sticky slots: ${STICKY_SLOTS.join(', ')}`,
+    `hand slots: ${HAND_OPTIONS.join(', ')}`,
+    '',
+    'expressions:',
+    ...(input.expressions.length ? input.expressions.map(name => `- ${name}`) : ['- (none)']),
+    '',
+    'motions:',
+    ...(input.motions.length ? input.motions.map(name => `- ${name}`) : ['- (none)']),
+    '',
+    'Keyword guesses (verify; discard if unsure):',
+    formatGuesses(guess),
+    '',
+    'JSON shape: {"face":{"радость":["name"]},"gesture":{"кивок":[]},"sticky":{},"hand":{}}',
+    'Omit empty arrays.',
+  ].join('\n')
 }
 
 export { FACE_GROUPS, GESTURE_GROUPS, HAND_OPTIONS, STICKY_SLOTS }

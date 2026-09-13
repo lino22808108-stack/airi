@@ -74,7 +74,8 @@ const {
 
 const expressionStore = useExpressionStore()
 const expressionGroups = useExpressionGroupsStore()
-const { config, pickerFor } = storeToRefs(expressionGroups)
+const { config, pickerFor, sorting } = storeToRefs(expressionGroups)
+
 const expressionTab = ref<'core' | 'unusual'>('core')
 const expressionSettingsSnapshot = computed(() => props.runtimeSnapshot.live2dExpressions ?? expressionStore.settingsSnapshot)
 const usesRemoteExpressionRuntime = computed(() => props.runtimeSnapshot.live2dExpressions != null)
@@ -89,8 +90,8 @@ function previewBind(name: string) {
     expressionGroups.playMotion(name)
 }
 
-function autoSortSlots() {
-  expressionGroups.autoSort()
+async function autoSortSlots() {
+  await expressionGroups.autoSort()
 }
 
 watch(() => props.runtimeSnapshot.modelId, (modelId) => {
@@ -798,9 +799,12 @@ function handleMotionSelect(selectedMotionPath: string | number | undefined) {
       </div>
     </template>
     <template v-else>
-      <Button class="mt-3 w-full" @click="autoSortSlots">
-        {{ t('settings.live2d.expressions.auto-sort') }}
+      <Button class="mt-3 w-full" :loading="sorting" :disabled="sorting" @click="autoSortSlots">
+        {{ sorting ? t('settings.live2d.expressions.auto-sort-working') : t('settings.live2d.expressions.auto-sort') }}
       </Button>
+      <div mt-2 text-xs text-neutral-500 dark:text-neutral-400>
+        {{ t('settings.live2d.expressions.auto-sort-hint') }}
+      </div>
       <div mt-3 flex gap-4 border-b border-neutral-200 text-sm dark:border-neutral-700>
         <button
           :class="[expressionTab === 'core' ? 'border-primary-400 text-primary-500 border-b-2 pb-1' : 'text-neutral-500 pb-1']"

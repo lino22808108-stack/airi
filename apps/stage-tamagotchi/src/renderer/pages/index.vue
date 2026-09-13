@@ -98,7 +98,8 @@ const isTransparentByThreeExact = useThreeSceneIsTransparentAtPoint(
 )
 
 const settingsStore = useSettings()
-const { stageModelRenderer, stageModelSelectedUrl } = storeToRefs(settingsStore)
+const { stageModelRenderer, stageModelSelectedUrl, stageModelSelected } = storeToRefs(settingsStore)
+
 const modelStore = useModelStore()
 const expressionStore = useExpressionStore()
 const { sceneMutationLocked, scenePhase } = storeToRefs(modelStore)
@@ -151,7 +152,8 @@ const modelSettingsRuntimeSnapshot = computed<ModelSettingsRuntimeSnapshot>(() =
 
     return createEmptyModelSettingsRuntimeSnapshot({
       ownerInstanceId: modelSettingsRuntimeOwnerInstanceId,
-      modelId: expressionStore.modelId,
+      modelId: expressionStore.modelId || stageModelSelected.value,
+
       renderer: 'live2d',
       phase,
       controlsLocked: hasModel ? phase !== 'mounted' : false,

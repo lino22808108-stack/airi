@@ -202,6 +202,8 @@ live2d:
     tab-unusual: Необычные
     bind: Привязать
     auto-sort: Разложить самой
+    auto-sort-working: Читаю имена…
+    auto-sort-hint: Читает имена выражений и анимаций через твою модель. Что не поняла — не кладёт.
     face-section: Лицо
     gesture-section: Жесты
     hand-section: В руке

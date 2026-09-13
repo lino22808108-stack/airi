@@ -11,7 +11,10 @@ import { computed, ref, watch } from 'vue'
 
 import { useExpressionStore, useLive2dParams } from '@proj-airi/stage-ui-live2d'
 
+import { useSettingsStageModel } from '../settings/stage-model'
 import { autoSortAssets } from './expr-classify'
+import { sortAssetsWithLlm } from './expr-llm-sort'
+
 import {
   emptyExpressionGroupsConfig,
   emptyRecord,
@@ -24,8 +27,10 @@ import {
   HAND_OPTIONS,
   HAND_SLOT,
   pickOne,
+  resolveSlotOrName,
   STICKY_SLOTS,
 } from './expr-tag'
+
 
 function persistenceKey(modelId: string): string {
   return `expression-groups:${modelId}`
@@ -78,9 +83,15 @@ function saveConfig(modelId: string, config: ModelExpressionGroupsConfig) {
 export const useExpressionGroupsStore = defineStore('live2d-expression-groups', () => {
   const expressionStore = useExpressionStore()
   const live2d = useLive2dParams()
+  const stageModel = useSettingsStageModel()
   const scopedModelId = ref('')
   const config = ref<ModelExpressionGroupsConfig>(emptyExpressionGroupsConfig())
   const pickerFor = ref<string | null>(null)
+  const sorting = ref(false)
+
+  function resolvedModelId(): string {
+    return expressionStore.modelId || stageModel.stageModelSelected || ''
+  }
 
   function useModel(modelId: string) {
     if (!modelId || modelId === scopedModelId.value)
@@ -90,13 +101,13 @@ export const useExpressionGroupsStore = defineStore('live2d-expression-groups', 
     pickerFor.value = null
   }
 
-  watch(() => expressionStore.modelId, (modelId) => {
+  watch(() => resolvedModelId(), (modelId) => {
     if (modelId)
       useModel(modelId)
   }, { immediate: true })
 
   function persist() {
-    saveConfig(scopedModelId.value || expressionStore.modelId, config.value)
+    saveConfig(scopedModelId.value || resolvedModelId(), config.value)
   }
 
   function availableNames(): string[] {
@@ -174,23 +185,25 @@ export const useExpressionGroupsStore = defineStore('live2d-expression-groups', 
   function applyAttrs(attrs: Record<string, string> | null, missingTag: boolean) {
     const expressions = new Set(expressionStore.expressionGroups.keys())
     const motions = new Set(live2d.availableMotions.map(item => item.motionName))
+    const available = new Set([...expressions, ...motions])
 
     const faceNames = new Set(
       FACE_GROUPS.flatMap(name => config.value.face[name] ?? []).filter(name => expressions.has(name)),
     )
     const chosenFace = attrs?.[FACE_SLOT]
-    const resetFace = missingTag || !attrs || !chosenFace || chosenFace === EXPR_OFF || !(FACE_GROUPS as readonly string[]).includes(chosenFace)
+    const resetFace = missingTag || !attrs || !chosenFace || chosenFace === EXPR_OFF
     if (resetFace) {
       for (const name of faceNames)
         setGroupOn(name, false)
     }
     else {
-      const binds = (config.value.face[chosenFace as FaceGroupName] ?? [])
-        .filter(name => expressions.has(name) || motions.has(name))
+      const binds = resolveSlotOrName(chosenFace, FACE_GROUPS, config.value.face, available)
       const chosen = pickOne(binds)
       if (chosen && expressions.has(chosen)) {
         for (const name of faceNames)
           setGroupOn(name, name === chosen)
+        if (!faceNames.has(chosen))
+          setGroupOn(chosen, true)
       }
       else {
         for (const name of faceNames)
@@ -204,10 +217,8 @@ export const useExpressionGroupsStore = defineStore('live2d-expression-groups', 
       return
 
     const chosenGesture = attrs[GESTURE_SLOT]
-    // "нет" here is the head-shake gesture, not EXPR_OFF.
-    if (chosenGesture && (GESTURE_GROUPS as readonly string[]).includes(chosenGesture)) {
-      const binds = (config.value.gesture[chosenGesture as GestureGroupName] ?? [])
-        .filter(name => motions.has(name) || expressions.has(name))
+    if (chosenGesture) {
+      const binds = resolveSlotOrName(chosenGesture, GESTURE_GROUPS, config.value.gesture, available)
       const chosen = pickOne(binds)
       if (chosen && motions.has(chosen))
         playMotion(chosen)
@@ -218,32 +229,52 @@ export const useExpressionGroupsStore = defineStore('live2d-expression-groups', 
     const chosenHand = attrs[HAND_SLOT]
     if (chosenHand != null) {
       const allHand = HAND_OPTIONS.flatMap(option => config.value.hand[option] ?? []).filter(name => expressions.has(name))
-      const keep = chosenHand === EXPR_OFF || !(HAND_OPTIONS as readonly string[]).includes(chosenHand)
+      const keep = chosenHand === EXPR_OFF
         ? undefined
-        : pickOne((config.value.hand[chosenHand as HandOption] ?? []).filter(name => expressions.has(name)))
+        : pickOne(resolveSlotOrName(chosenHand, HAND_OPTIONS, config.value.hand, available).filter(name => expressions.has(name)))
       for (const name of allHand)
         setGroupOn(name, name === keep)
+      if (keep && !allHand.includes(keep))
+        setGroupOn(keep, true)
     }
 
     for (const slot of STICKY_SLOTS) {
       const value = attrs[slot]
       if (value == null)
         continue
-      const binds = (config.value.sticky[slot] ?? []).filter(name => expressions.has(name))
+      const binds = (config.value.sticky[slot] ?? []).filter(name => expressions.has(name) || motions.has(name))
       const on = value === EXPR_ON || value === 'true'
-      for (const name of binds)
-        setGroupOn(name, on)
+      if (binds.length > 0) {
+        for (const name of binds) {
+          if (expressions.has(name))
+            setGroupOn(name, on)
+        }
+        continue
+      }
+      if (available.has(value) && expressions.has(value))
+        setGroupOn(value, on)
     }
   }
 
-  function autoSort() {
-    const sorted = autoSortAssets({
-      expressions: Array.from(expressionStore.expressionGroups.keys()),
-      motions: [...new Set(live2d.availableMotions.map(item => item.motionName))],
-    })
-    config.value = sorted
-    persist()
-    return sorted
+  async function autoSort() {
+    if (sorting.value)
+      return config.value
+    sorting.value = true
+    try {
+      const expressions = Array.from(expressionStore.expressionGroups.keys())
+      const motions = [...new Set(live2d.availableMotions.map(item => item.motionName))]
+      const heuristic = autoSortAssets({ expressions, motions })
+      const llm = await sortAssetsWithLlm({ expressions, motions }).catch((error) => {
+        console.warn('[expression-groups] LLM sort failed, using name heuristic', error)
+        return null
+      })
+      config.value = llm ?? heuristic
+      persist()
+      return config.value
+    }
+    finally {
+      sorting.value = false
+    }
   }
 
   const liveAvailable = computed(() => availableNames())
@@ -251,6 +282,7 @@ export const useExpressionGroupsStore = defineStore('live2d-expression-groups', 
   return {
     config,
     pickerFor,
+    sorting,
     liveAvailable,
     availableNames,
     useModel,

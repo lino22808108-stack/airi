@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { autoSortAssets, classifyLive2dAsset } from './expr-classify'
+import { autoSortAssets, classifyLive2dAsset, parseLlmSortResult } from './expr-classify'
 import {
   consumeExprTag,
   emptyExpressionGroupsConfig,
@@ -8,8 +8,10 @@ import {
   formatExprPrompt,
   parseExprAttrs,
   pickOne,
+  resolveSlotOrName,
   stripExprFromMessage,
 } from './expr-tag'
+
 
 describe('expr tag', () => {
   it('parses attributes', () => {
@@ -82,6 +84,25 @@ describe('expr tag', () => {
     expect(text).not.toContain('головной_убор')
     expect(text).not.toContain('рука:')
   })
+
+  it('still prompts from raw names when no slots are bound', () => {
+    const text = formatExprPrompt(emptyExpressionGroupsConfig(), ['w-cute01-shy', 'w-adult01-nod'], {
+      expressions: [],
+      motions: ['w-cute01-shy', 'w-adult01-nod'],
+    })
+    expect(text).toContain('motions: w-cute01-shy | w-adult01-nod')
+    expect(text).toContain('лицо: exact name from expressions/motions')
+    expect(text).toContain(EXPR_RULE)
+  })
+
+  it('resolves a slot bind or a raw asset name', () => {
+    const config = emptyExpressionGroupsConfig()
+    config.face.смущение = ['w-cute01-shy']
+    const available = new Set(['w-cute01-shy', 'w-cool10-angry'])
+    expect(resolveSlotOrName('смущение', ['радость', 'смущение'], config.face, available)).toEqual(['w-cute01-shy'])
+    expect(resolveSlotOrName('w-cool10-angry', ['радость', 'смущение'], config.face, available)).toEqual(['w-cool10-angry'])
+    expect(resolveSlotOrName('радость', ['радость', 'смущение'], config.face, available)).toEqual([])
+  })
 })
 
 describe('auto sort', () => {
@@ -122,6 +143,19 @@ describe('auto sort', () => {
     expect(classifyLive2dAsset('w-adult01-deny', 'motion')).toEqual({ kind: 'gesture', slot: 'нет' })
     expect(classifyLive2dAsset('w-adult01-no', 'motion')).toEqual({ kind: 'gesture', slot: 'нет' })
     expect(classifyLive2dAsset('w-adult01-nod', 'motion')).toEqual({ kind: 'gesture', slot: 'кивок' })
+  })
+
+  it('keeps only names the model actually has and drops unknowns', () => {
+    const sorted = parseLlmSortResult(`
+      \`\`\`json
+      {"face":{"смущение":["w-cute01-shy","made-up"],"злость":["w-cool10-angry"]},"gesture":{"кивок":["w-adult01-nod"]}}
+      \`\`\`
+    `, ['w-cute01-shy', 'w-cool10-angry', 'w-adult01-nod'])
+    expect(sorted?.face.смущение).toEqual(['w-cute01-shy'])
+    expect(sorted?.face.злость).toEqual(['w-cool10-angry'])
+    expect(sorted?.gesture.кивок).toEqual(['w-adult01-nod'])
+    expect(sorted?.face.смущение).not.toContain('made-up')
+    expect(parseLlmSortResult('{"face":{"радость":["nope"]}}', ['w-cute01-shy'])).toBeNull()
   })
 })
 

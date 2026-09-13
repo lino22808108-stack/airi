@@ -71,14 +71,17 @@ export const HAND_HINT = 'предмет в руке. один слот. дер�
 export const GESTURE_HINT = 'жест на этот ответ, не липкий. если не нужен — не пиши слот'
 
 export const EXPR_RULE = [
-  'RULE: You MAY start the reply with one hidden tag, then the spoken text.',
+  'RULE: Start the reply with one hidden tag when the feeling, gesture, or prop is clear, then the spoken text.',
   'Tag format: <expr лицо="смущение" жест="кивок" головной_убор="да" рука="геймпад"/>',
-  'Use only names from EXPR. Omit a sticky/hand slot to leave it unchanged.',
+  'Use only names listed in EXPR. Prefer slot names. If a slot is missing, you may put an exact expression or motion name into лицо or жест.',
+  'If you do not understand a name, do not use it.',
+  'Omit a sticky/hand slot to leave it unchanged.',
   'Face and gesture are for this reply and may be used together.',
   'жест="нет" means the head-shake gesture, not “no gesture”. Skip the жест attribute if there is no gesture.',
-  'If you skip the tag, just speak normally.',
+  'If nothing fits, omit the tag.',
   'Never mention the tag, EXPR, or that a system told you to pose.',
 ].join('\n')
+
 
 export interface ModelExpressionGroupsConfig {
   face: Record<FaceGroupName, string[]>
@@ -203,23 +206,56 @@ function live(names: string[] | undefined, available: Set<string>): string[] {
   return (names ?? []).filter(name => available.has(name))
 }
 
+function boundNames(config: ModelExpressionGroupsConfig, available: Set<string>): Set<string> {
+  return new Set([
+    ...FACE_GROUPS.flatMap(name => live(config.face[name], available)),
+    ...GESTURE_GROUPS.flatMap(name => live(config.gesture[name], available)),
+    ...STICKY_SLOTS.flatMap(name => live(config.sticky[name], available)),
+    ...HAND_OPTIONS.flatMap(name => live(config.hand[name], available)),
+  ])
+}
+
+export function resolveSlotOrName(
+  value: string,
+  slotNames: readonly string[],
+  binds: Record<string, string[]>,
+  available: Set<string>,
+): string[] {
+  if ((slotNames as readonly string[]).includes(value)) {
+    const liveBinds = live(binds[value], available)
+    if (liveBinds.length > 0)
+      return liveBinds
+  }
+  if (available.has(value))
+    return [value]
+  return []
+}
+
 export function formatExprPrompt(
   config: ModelExpressionGroupsConfig,
   availableNames: string[],
+  lists?: { expressions?: string[], motions?: string[] },
 ): string | undefined {
   const available = new Set(availableNames)
+  const bound = boundNames(config, available)
   const lines: string[] = []
 
   const faceOptions = FACE_GROUPS.filter(name => live(config.face[name], available).length > 0)
+  const gestureOptions = GESTURE_GROUPS.filter(name => live(config.gesture[name], available).length > 0)
+  const handOptions = HAND_OPTIONS.filter(name => live(config.hand[name], available).length > 0)
+  const unboundExpressions = (lists?.expressions ?? []).filter(name => available.has(name) && !bound.has(name))
+  const unboundMotions = (lists?.motions ?? []).filter(name => available.has(name) && !bound.has(name))
+
   if (faceOptions.length > 0)
     lines.push(`${FACE_SLOT}: ${[...faceOptions, EXPR_OFF].join(' | ')}`)
+  else if (unboundExpressions.length > 0 || unboundMotions.length > 0)
+    lines.push(`${FACE_SLOT}: exact name from expressions/motions, or ${EXPR_OFF}`)
 
-  // Gesture "нет" is the head-shake slot. Omitting the attribute means no gesture.
-  const gestureOptions = GESTURE_GROUPS.filter(name => live(config.gesture[name], available).length > 0)
   if (gestureOptions.length > 0)
     lines.push(`${GESTURE_SLOT}: ${gestureOptions.join(' | ')} — ${GESTURE_HINT}`)
+  else if (unboundMotions.length > 0)
+    lines.push(`${GESTURE_SLOT}: exact motion name — ${GESTURE_HINT}`)
 
-  const handOptions = HAND_OPTIONS.filter(name => live(config.hand[name], available).length > 0)
   if (handOptions.length > 0)
     lines.push(`${HAND_SLOT}: ${[...handOptions, EXPR_OFF].join(' | ')} — ${HAND_HINT}`)
 
@@ -228,6 +264,11 @@ export function formatExprPrompt(
       continue
     lines.push(`${slot}: ${EXPR_ON}/${EXPR_OFF} — ${STICKY_HINT[slot]}`)
   }
+
+  if (unboundExpressions.length > 0)
+    lines.push(`expressions: ${unboundExpressions.join(' | ')}`)
+  if (unboundMotions.length > 0)
+    lines.push(`motions: ${unboundMotions.join(' | ')}`)
 
   if (lines.length === 0)
     return undefined

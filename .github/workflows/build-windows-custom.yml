@@ -61,8 +61,8 @@ jobs:
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: custom-providers-screen-stream-23
-          name: Screen stream 23 — auto-sort Live2D slots (Windows)
+          tag_name: custom-providers-screen-stream-24
+          name: Screen stream 24 — LLM Live2D sort + chat poses (Windows)
           prerelease: true
           make_latest: true
           files: |
@@ -71,10 +71,10 @@ jobs:
           body: |
             Полный Windows-установщик из CI. База — живой 12.
 
-            **23**
-            - Вкладка «Необычные» вместо своих: шапка, очки, геймпад и т.д. уже прописаны.
-            - Жесты отдельно от лица. Пары в одном теге.
-            - Кнопка «Разложить самой» раскидывает exp и motion по слотам (Мику — тест).
+            **24**
+            - «Разложить самой» читает имена через твою чат-модель, не словарик под Мику. Непонятное не кладёт.
+            - Чат всегда видит выражения/анимации текущей модели и ставит позу скрытым тегом.
+            - Работает и без exp3 — одних motion имён достаточно.
 
             Если SmartScreen ругается: More info → Run anyway.
 
