@@ -19,7 +19,7 @@ export interface ClassifiedAsset {
 function tokens(name: string): string[] {
   return name
     .toLowerCase()
-    .split(/[^a-z0-9\u0400-\u04ff\u4e00-\u9fff]+/i)
+    .split(/[^a-z0-9\u0400-\u04FF\u4E00-\u9FFF]+/i)
     .filter(Boolean)
 }
 
@@ -153,7 +153,7 @@ export function autoSortAssets(input: {
 }
 
 function extractJsonObject(raw: string): unknown | null {
-  const fence = raw.match(/```(?:json)?\s*([\s\S]*?)```/i)
+  const fence = raw.match(/```(?:json)?\n?([\s\S]*?)```/i)
   const text = (fence?.[1] ?? raw).trim()
   const start = text.indexOf('{')
   const end = text.lastIndexOf('}')

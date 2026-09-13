@@ -1,9 +1,8 @@
 import type { ContextMessage } from '../../../types/chat'
 
 import { ContextUpdateStrategy } from '@proj-airi/server-sdk'
-import { nanoid } from 'nanoid'
-
 import { useExpressionStore, useLive2dParams } from '@proj-airi/stage-ui-live2d'
+import { nanoid } from 'nanoid'
 
 import { useSettingsStageModel } from '../../settings/stage-model'
 import { formatExprPrompt } from '../expr-tag'

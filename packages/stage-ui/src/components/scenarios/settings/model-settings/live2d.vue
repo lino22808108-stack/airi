@@ -15,9 +15,9 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import MagicMotionSettings from '../../../../features/motions/live2d/components/magic-settings.vue'
+
 import { FACE_GROUPS, GESTURE_GROUPS, HAND_OPTIONS, STICKY_SLOTS } from '../../../../stores/chat/expr-tag'
 import { useExpressionGroupsStore } from '../../../../stores/chat/expression-groups'
-
 import { PropertyPoint } from '../../../data-pane'
 import { Section } from '../../../layouts'
 import { ColorPalette } from '../../../widgets'
@@ -823,14 +823,18 @@ function handleMotionSelect(selectedMotionPath: string | number | undefined) {
       </div>
 
       <div v-if="expressionTab === 'core'" mt-3 flex flex-col gap-2>
-        <div text-xs text-neutral-500>{{ t('settings.live2d.expressions.face-section') }}</div>
+        <div text-xs text-neutral-500>
+          {{ t('settings.live2d.expressions.face-section') }}
+        </div>
         <div
           v-for="group in FACE_GROUPS"
           :key="`face-${group}`"
           class="rounded-lg bg-neutral-50 p-2 dark:bg-neutral-900"
         >
           <div flex items-center justify-between gap-2>
-            <div text-sm font-medium>{{ t(`settings.live2d.expressions.face.${group}`) }}</div>
+            <div text-sm font-medium>
+              {{ t(`settings.live2d.expressions.face.${group}`) }}
+            </div>
             <Button size="sm" @click="togglePicker(`face:${group}`)">
               {{ t('settings.live2d.expressions.bind') }}
             </Button>
@@ -847,7 +851,7 @@ function handleMotionSelect(selectedMotionPath: string | number | undefined) {
               <span class="ml-1 text-neutral-400" @click.stop="expressionGroups.removeFaceBind(group, name)">×</span>
             </button>
           </div>
-          <div v-if="pickerKey(`face:${group}`)" mt-2 flex max-h-48 flex-col gap-1 overflow-auto>
+          <div v-if="pickerKey(`face:${group}`)" mt-2 max-h-48 flex flex-col gap-1 overflow-auto>
             <button
               v-for="name in facePickerNames"
               :key="name"
@@ -860,14 +864,18 @@ function handleMotionSelect(selectedMotionPath: string | number | undefined) {
           </div>
         </div>
 
-        <div mt-2 text-xs text-neutral-500>{{ t('settings.live2d.expressions.gesture-section') }}</div>
+        <div mt-2 text-xs text-neutral-500>
+          {{ t('settings.live2d.expressions.gesture-section') }}
+        </div>
         <div
           v-for="group in GESTURE_GROUPS"
           :key="`gesture-${group}`"
           class="rounded-lg bg-neutral-50 p-2 dark:bg-neutral-900"
         >
           <div flex items-center justify-between gap-2>
-            <div text-sm font-medium>{{ t(`settings.live2d.expressions.gesture.${group}`) }}</div>
+            <div text-sm font-medium>
+              {{ t(`settings.live2d.expressions.gesture.${group}`) }}
+            </div>
             <Button size="sm" @click="togglePicker(`gesture:${group}`)">
               {{ t('settings.live2d.expressions.bind') }}
             </Button>
@@ -884,7 +892,7 @@ function handleMotionSelect(selectedMotionPath: string | number | undefined) {
               <span class="ml-1 text-neutral-400" @click.stop="expressionGroups.removeGestureBind(group, name)">×</span>
             </button>
           </div>
-          <div v-if="pickerKey(`gesture:${group}`)" mt-2 flex max-h-48 flex-col gap-1 overflow-auto>
+          <div v-if="pickerKey(`gesture:${group}`)" mt-2 max-h-48 flex flex-col gap-1 overflow-auto>
             <button
               v-for="name in modelMotionNames"
               :key="name"
@@ -905,7 +913,9 @@ function handleMotionSelect(selectedMotionPath: string | number | undefined) {
           class="rounded-lg bg-neutral-50 p-2 dark:bg-neutral-900"
         >
           <div flex items-center justify-between gap-2>
-            <div text-sm font-medium>{{ t(`settings.live2d.expressions.sticky.${slot}`) }}</div>
+            <div text-sm font-medium>
+              {{ t(`settings.live2d.expressions.sticky.${slot}`) }}
+            </div>
             <Button size="sm" @click="togglePicker(`sticky:${slot}`)">
               {{ t('settings.live2d.expressions.bind') }}
             </Button>
@@ -922,7 +932,7 @@ function handleMotionSelect(selectedMotionPath: string | number | undefined) {
               <span class="ml-1 text-neutral-400" @click.stop="expressionGroups.removeStickyBind(slot, name)">×</span>
             </button>
           </div>
-          <div v-if="pickerKey(`sticky:${slot}`)" mt-2 flex max-h-48 flex-col gap-1 overflow-auto>
+          <div v-if="pickerKey(`sticky:${slot}`)" mt-2 max-h-48 flex flex-col gap-1 overflow-auto>
             <button
               v-for="name in modelExpressionNames"
               :key="name"
@@ -935,14 +945,18 @@ function handleMotionSelect(selectedMotionPath: string | number | undefined) {
           </div>
         </div>
 
-        <div mt-2 text-xs text-neutral-500>{{ t('settings.live2d.expressions.hand-section') }}</div>
+        <div mt-2 text-xs text-neutral-500>
+          {{ t('settings.live2d.expressions.hand-section') }}
+        </div>
         <div
           v-for="slot in HAND_OPTIONS"
           :key="`hand-${slot}`"
           class="rounded-lg bg-neutral-50 p-2 dark:bg-neutral-900"
         >
           <div flex items-center justify-between gap-2>
-            <div text-sm font-medium>{{ t(`settings.live2d.expressions.hand.${slot}`) }}</div>
+            <div text-sm font-medium>
+              {{ t(`settings.live2d.expressions.hand.${slot}`) }}
+            </div>
             <Button size="sm" @click="togglePicker(`hand:${slot}`)">
               {{ t('settings.live2d.expressions.bind') }}
             </Button>
@@ -959,7 +973,7 @@ function handleMotionSelect(selectedMotionPath: string | number | undefined) {
               <span class="ml-1 text-neutral-400" @click.stop="expressionGroups.removeHandBind(slot, name)">×</span>
             </button>
           </div>
-          <div v-if="pickerKey(`hand:${slot}`)" mt-2 flex max-h-48 flex-col gap-1 overflow-auto>
+          <div v-if="pickerKey(`hand:${slot}`)" mt-2 max-h-48 flex flex-col gap-1 overflow-auto>
             <button
               v-for="name in modelExpressionNames"
               :key="name"

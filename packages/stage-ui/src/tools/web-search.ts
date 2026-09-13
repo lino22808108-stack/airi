@@ -1,3 +1,4 @@
+import { errorMessageFrom } from '@moeru/std'
 import type { Tool, ToolExecuteOptions } from '@xsai/shared-chat'
 
 import { rawTool } from '@xsai/tool'
@@ -394,7 +395,7 @@ export async function createWebSearchTools(options: CreateWebSearchToolsOptions)
             return formatResults(input.query, results)
           }
           catch (error) {
-            const message = error instanceof Error ? error.message : String(error)
+            const message = errorMessageFrom(error) ?? 'Unknown error'
             errors.push(message)
           }
         }
