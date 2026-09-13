@@ -756,6 +756,18 @@ pages:
       api-key: Tavily API 金鑰
       api-key-description: 網路搜尋由 Tavily 提供支援，可在 tavily.com 免費取得 API 金鑰。
       api-key-placeholder: 輸入您的 Tavily API 金鑰
+      provider: 搜尋提供商
+      provider-description: 自動模式會在目前提供商失敗、逾時或額度用盡時切換到下一個。
+      provider-auto: 自動
+      provider-tavily: Tavily
+      provider-brave: Brave
+      provider-serper: Serper
+      brave-api-key: Brave API 金鑰
+      brave-api-key-description: 選填。可在 brave.com/search/api 取得。自動模式下 Tavily 失敗時使用。
+      brave-api-key-placeholder: 輸入您的 Brave Search API 金鑰
+      serper-api-key: Serper API 金鑰
+      serper-api-key-description: 選填。可在 serper.dev 取得。自動模式下前序提供商失敗時使用。
+      serper-api-key-placeholder: 輸入您的 Serper API 金鑰
       configured: 網路搜尋已就緒！
     mcp-server:
       title: MCP 伺服器

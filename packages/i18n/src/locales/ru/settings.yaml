@@ -198,6 +198,54 @@ live2d:
       none: Отсутствует
       all: Все
       custom: Пользовательский
+    tab-core: Основные
+    tab-unusual: Необычные
+    bind: Привязать
+    auto-sort: Разложить самой
+    auto-sort-working: Читаю имена…
+    auto-sort-hint: Читает имена выражений и анимаций через твою модель. Что не поняла — не кладёт.
+    face-section: Лицо
+    gesture-section: Жесты
+    hand-section: В руке
+    one-slot: один слот
+    face:
+      радость: Радость
+      злость: Злость
+      смущение: Смущение
+      удивление: Удивление
+      грусть: Грусть
+      страх: Страх
+      любовь: Любовь
+      плач: Плач
+      скука: Скука
+      отвращение: Отвращение
+    gesture:
+      кивок: Кивок
+      нет: Нет / отказ
+      думает: Думает
+      машет: Машет
+      спит: Спит
+      подмигивает: Подмигивает
+      указывает: Указывает
+      радуется: Радуется телом
+    sticky:
+      головной_убор: Головной убор
+      очки: Очки
+      маска: Маска
+      наушники: Наушники
+      украшение: Украшение на голове
+      одежда: Одежда / куртка
+      шарф: Шарф
+      крылья: Крылья
+      хвост: Хвост
+      аксессуар: Аксессуар
+    hand:
+      телефон: Телефон
+      микрофон: Микрофон
+      геймпад: Геймпад
+      еда: Еда / напиток
+      книга: Книга
+      оружие: Оружие
 microphone: Микрофон
 models: Модель
 pages:
@@ -754,8 +802,20 @@ pages:
       enable: Enable Web Search
       enable-description: Allow AIRI to search the web during chat
       api-key: Tavily API Key
-      api-key-description: Web search is powered by Tavily. Get a free API key at tavily.com.
-      api-key-placeholder: Enter your Tavily API key
+      api-key-description: Поиск через Tavily. Бесплатный ключ на tavily.com.
+      api-key-placeholder: Введите Tavily API ключ
+      provider: Провайдер поиска
+      provider-description: Авто переключается на следующего, если текущий не ответил, отвалился или закончились кредиты.
+      provider-auto: Авто
+      provider-tavily: Tavily
+      provider-brave: Brave
+      provider-serper: Serper
+      brave-api-key: Brave API Key
+      brave-api-key-description: Необязательно. Ключ на brave.com/search/api. В Авто — запасной после Tavily.
+      brave-api-key-placeholder: Введите Brave Search API ключ
+      serper-api-key: Serper API Key
+      serper-api-key-description: Необязательно. Ключ на serper.dev. В Авто — запасной, если предыдущие не ответили.
+      serper-api-key-placeholder: Введите Serper API ключ
       configured: Web search is ready to use!
     mcp-server:
       title: MCP Сервера

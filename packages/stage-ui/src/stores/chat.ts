@@ -29,8 +29,11 @@ import { resolveLlmTools } from './ai/chat-llm/tool-resolver'
 import { useLlmToolsStore } from './ai/chat-llm/tools'
 import { useLlmToolsetPromptsStore } from './ai/chat-llm/toolset-prompts'
 import { useAuthStore } from './auth'
-import { createMinecraftContext, createRuntimePromptContext, createUserAccountContext } from './chat/context-providers'
+import { createExprGroupsContext, createMinecraftContext, createRuntimePromptContext, createTurnClockContext, createUserAccountContext } from './chat/context-providers'
+import { resolveChatClientSurface } from './chat/chat-client-surface'
 import { useChatContextStore } from './chat/context-store'
+import { useExpressionGroupsStore } from './chat/expression-groups'
+import { stripExprFromMessage } from './chat/expr-tag'
 import { useChatSessionStore } from './chat/session-store'
 import { useChatStreamStore } from './chat/stream-store'
 import { useContextObservabilityStore } from './devtools/context-observability'
@@ -160,6 +163,7 @@ export const useChatStore = defineStore('chat', () => {
   const chatSession = useChatSessionStore()
   const chatStream = useChatStreamStore()
   const chatContext = useChatContextStore()
+  const expressionGroups = useExpressionGroupsStore()
   const cardStore = useAiriCardStore()
   const contextObservability = useContextObservabilityStore()
   const { activeSessionId } = storeToRefs(chatSession)
@@ -171,6 +175,7 @@ export const useChatStore = defineStore('chat', () => {
   const pendingQueuedSendCount = shallowRef(0)
   let ownedActiveTurnSpan: typeof activeTurnSpan.value
   let stopLeadershipListener: (() => void) | undefined
+  let exprTagApplied = false
   const analyticsHooks = createChatAnalyticsHooks({
     getSessionMessages: sessionId => chatSession.getSessionMessages(sessionId),
   })
@@ -285,7 +290,29 @@ export const useChatStore = defineStore('chat', () => {
     session: {
       ensureSession: sessionId => chatSession.ensureSession(sessionId),
       getSessionMessages: sessionId => chatSession.getSessionMessages(sessionId).map(message => toRaw(message)),
-      appendSessionMessage: (sessionId, message) => chatSession.appendSessionMessage(sessionId, message),
+      appendSessionMessage: (sessionId, message) => {
+        if (message && 'role' in message && message.role === 'assistant') {
+          try {
+            const raw = toRaw(message) as StreamingAssistantMessage
+            const { message: visible, attrs, pending } = stripExprFromMessage(raw)
+            if (!exprTagApplied) {
+              try {
+                expressionGroups.applyAttrs(attrs, !attrs && !pending)
+              }
+              catch (error) {
+                console.warn('[expr] apply failed', error)
+              }
+            }
+            exprTagApplied = false
+            chatSession.appendSessionMessage(sessionId, pending ? raw : visible)
+            return
+          }
+          catch (error) {
+            console.warn('[expr] strip failed', error)
+          }
+        }
+        chatSession.appendSessionMessage(sessionId, message)
+      },
       getSessionGeneration: sessionId => chatSession.getSessionGeneration(sessionId),
     },
     context: {
@@ -302,9 +329,36 @@ export const useChatStore = defineStore('chat', () => {
     },
     foregroundStream: {
       patch: (message) => {
-        streamingMessage.value = message
+        try {
+          const { message: visible, attrs, pending } = stripExprFromMessage(toRaw(message) as StreamingAssistantMessage)
+          if (attrs && !exprTagApplied) {
+            try {
+              expressionGroups.applyAttrs(attrs, false)
+            }
+            catch (error) {
+              console.warn('[expr] apply failed', error)
+            }
+            exprTagApplied = true
+          }
+          const spoken = typeof visible.content === 'string' ? visible.content : ''
+          if (!pending && !attrs && !exprTagApplied && spoken.length > 0) {
+            try {
+              expressionGroups.applyAttrs(null, true)
+            }
+            catch (error) {
+              console.warn('[expr] apply failed', error)
+            }
+            exprTagApplied = true
+          }
+          streamingMessage.value = visible
+        }
+        catch (error) {
+          console.warn('[expr] stream strip failed', error)
+          streamingMessage.value = message
+        }
       },
       reset: () => {
+        exprTagApplied = false
         streamingMessage.value = { role: 'assistant', content: '', slices: [], tool_results: [] }
       },
     },
@@ -316,6 +370,12 @@ export const useChatStore = defineStore('chat', () => {
     getSystemPromptSupplement: () => llmToolsetPromptsStore.activeToolsetPrompt,
     runtimeContextProviders: [
       () => createRuntimePromptContext(runtimePrompt.value),
+      () => createTurnClockContext({
+        sessionId: activeSessionId.value,
+        surface: resolveChatClientSurface(),
+        messages: chatSession.getSessionMessages(activeSessionId.value),
+      }),
+      createExprGroupsContext,
       createMinecraftContext,
     ],
     createId: nanoid,

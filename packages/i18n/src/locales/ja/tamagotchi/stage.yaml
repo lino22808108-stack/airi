@@ -32,6 +32,18 @@ docs:
   'logging-in': サインイン中…
   'account': アカウント
   'logout': サインアウト
+  'screen-stream':
+    start: 画面を共有
+    stop: 画面共有を停止
+    pick: 画面を選択
+    pick-hint: ディスプレイまたはウィンドウを選ぶ。目はチャットモデル（Consciousness）。間隔とシーン変化回数は 設定 → Vision。
+    displays: ディスプレイ
+    windows: ウィンドウ
+    empty: 共有できるものがありません
+    loading: 読み込み中...
+    vision-unconfigured: 設定 → モジュール → Consciousness で画像を見られるチャットモデルを選んでください。Vision タブは配信設定だけです。
+    overlay-title: 画面
+    overlay-changes: シーン変化 {current}/{target}
 widgets:
   close: Close widget
   empty:

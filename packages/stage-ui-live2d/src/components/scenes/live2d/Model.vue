@@ -31,7 +31,8 @@ import {
 } from '../../../composables/live2d'
 import { useFitModel } from '../../../composables/live2d/fit-model'
 import { Emotion, EmotionNeutralMotionName } from '../../../constants/emotions'
-import { getLive2DMotionControlModelOffset, useL2dViewControl, useLive2DMotionControl, useLive2dParams } from '../../../stores'
+import { getLive2DMotionControlModelOffset, useExpressionStore, useL2dViewControl, useLive2DMotionControl, useLive2dParams } from '../../../stores'
+
 
 const props = withDefaults(defineProps<{
   modelSrc?: string
@@ -476,6 +477,9 @@ async function performModelLoad() {
     await initExpressionController(internalModelRef.value, loadedModelId).catch((err) => {
       console.warn('[Model.vue] Expression controller initialization failed:', err)
     })
+    const expressionStore = useExpressionStore()
+    if (loadedModelId && !expressionStore.modelId)
+      expressionStore.registerExpressions(loadedModelId, [], [])
   }
 }
 
@@ -496,8 +500,10 @@ async function initExpressionController(internalModel?: PixiLive2DInternalModel,
 
   // model3.json stores expressions as { Name, File }[] under settings.expressions
   const expressionRefs: { Name: string, File: string }[] = settings.expressions ?? []
-  if (expressionRefs.length === 0)
+  if (expressionRefs.length === 0) {
+    useExpressionStore().registerExpressions(modelId ?? 'unknown', [], [])
     return
+  }
 
   // Build a function that can read exp3 files relative to the model root.
   // For URL-loaded models, resolveURL gives us the full URL. For ZIP-loaded

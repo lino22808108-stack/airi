@@ -15,7 +15,9 @@ import ControlButton from './control-button.vue'
 import ControlsIslandAuthButton from './controls-island-auth-button.vue'
 import ControlsIslandFadeOnHover from './controls-island-fade-on-hover.vue'
 import ControlsIslandHearingConfig from './controls-island-hearing-config.vue'
+import ControlsIslandOverlayFrames from './controls-island-overlay-frames.vue'
 import ControlsIslandProfilePicker from './controls-island-profile-picker.vue'
+import ControlsIslandScreenStream from './controls-island-screen-stream.vue'
 import ControlsIslandStopSpeaking from './controls-island-stop-speaking.vue'
 import IndicatorMicVolume from './indicator-mic-volume.vue'
 
@@ -234,7 +236,7 @@ function resetMainWindowPosition() {
     :data-direction="direction"
     :data-scroll-owner="scrollWholeIsland ? 'island' : 'menu'"
     :class="[
-      'fixed max-h-[calc(100dvh-1rem)] max-w-[calc(100dvw-1rem)]',
+      'fixed z-50 max-h-[calc(100dvh-1rem)] max-w-[calc(100dvw-1rem)]',
       islandPositionClasses,
       islandMotionClasses,
     ]"
@@ -400,6 +402,12 @@ function resetMainWindowPosition() {
                       {{ t('tamagotchi.stage.controls-island.close') }}
                     </template>
                   </ControlButtonTooltip>
+
+                  <ControlsIslandScreenStream
+                    :icon-class="adjustStyleClasses.icon"
+                    :button-style="adjustStyleClasses.button"
+                    @interaction-change="setOverlay('screen-stream', $event)"
+                  />
                 </div>
               </div>
             </div>
@@ -467,6 +475,11 @@ function resetMainWindowPosition() {
               {{ t('tamagotchi.stage.controls-island.open-hearing-controls') }}
             </template>
           </ControlButtonTooltip>
+
+          <ControlsIslandOverlayFrames
+            :icon-class="adjustStyleClasses.icon"
+            :button-style="adjustStyleClasses.button"
+          />
 
           <ControlsIslandStopSpeaking
             :button-style="adjustStyleClasses.button"

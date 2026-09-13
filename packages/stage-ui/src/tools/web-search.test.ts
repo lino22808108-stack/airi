@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { createWebSearchTools } from './web-search'
+import { createWebSearchTools, providersToTry } from './web-search'
 
 interface TavilyResult {
   title?: string
@@ -225,5 +225,97 @@ describe('createWebSearchTools', () => {
       expect.objectContaining({ type: 'string' }),
       { type: 'null' },
     ])
+  })
+
+  it('falls through to Brave in auto mode when Tavily fails', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 429,
+        json: () => Promise.resolve({}),
+        text: () => Promise.resolve('rate limited'),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({
+          web: { results: [{ title: 'From Brave', url: 'https://brave.example', description: 'ok' }] },
+        }),
+        text: () => Promise.resolve(''),
+      })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const [tool] = await createWebSearchTools({
+      mode: 'auto',
+      tavilyApiKey: 'tvly',
+      braveApiKey: 'brave',
+    })
+    const result = await tool.execute({ query: 'q', max_results: 1 }, ctx) as string
+
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(fetchMock.mock.calls[0][0]).toBe('https://api.tavily.com/search')
+    expect(String(fetchMock.mock.calls[1][0])).toContain('https://api.search.brave.com/res/v1/web/search')
+    expect(result).toContain('From Brave')
+    expect(result).toContain('[1] https://brave.example')
+  })
+
+  it('joins every provider error when auto mode exhausts the queue', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        json: () => Promise.resolve({}),
+        text: () => Promise.resolve('bad tavily'),
+      })
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 403,
+        json: () => Promise.resolve({}),
+        text: () => Promise.resolve('bad brave'),
+      })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const [tool] = await createWebSearchTools({
+      mode: 'auto',
+      tavilyApiKey: 'tvly',
+      braveApiKey: 'brave',
+    })
+
+    await expect(tool.execute({ query: 'q', max_results: 1 }, ctx))
+      .rejects
+      .toThrow('web search failed: tavily 401: bad tavily | web search failed: brave 403: bad brave')
+  })
+
+  it('uses Serper when locked to that provider', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve({
+        organic: [{ title: 'From Serper', link: 'https://serper.example', snippet: 'hit' }],
+      }),
+      text: () => Promise.resolve(''),
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const [tool] = await createWebSearchTools({
+      mode: 'serper',
+      tavilyApiKey: 'tvly',
+      serperApiKey: 'serper-key',
+    })
+    const result = await tool.execute({ query: 'q', max_results: 2 }, ctx) as string
+
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(fetchMock.mock.calls[0][0]).toBe('https://google.serper.dev/search')
+    const init = fetchMock.mock.calls[0][1] as RequestInit & { headers: Record<string, string> }
+    expect(init.headers['x-api-key']).toBe('serper-key')
+    expect(result).toContain('From Serper')
+  })
+})
+
+describe('providersToTry', () => {
+  it('skips empty keys in auto mode and respects a locked provider', () => {
+    expect(providersToTry('auto', { tavily: '', brave: 'b', serper: 's' })).toEqual(['brave', 'serper'])
+    expect(providersToTry('tavily', { tavily: 't', brave: 'b', serper: 's' })).toEqual(['tavily'])
+    expect(providersToTry('brave', { tavily: 't', brave: '', serper: 's' })).toEqual([])
   })
 })

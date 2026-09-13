@@ -9,6 +9,8 @@ import { z } from 'zod/v4'
  * tool has no SSRF surface — the model only controls the query and filters.
  */
 const TAVILY_SEARCH_URL = 'https://api.tavily.com/search'
+const BRAVE_SEARCH_URL = 'https://api.search.brave.com/res/v1/web/search'
+const SERPER_SEARCH_URL = 'https://google.serper.dev/search'
 
 /** Per-result snippet cap. Keeps a multi-result payload from flooding context. */
 const DEFAULT_RESULT_CHARS = 800
@@ -19,6 +21,24 @@ const MIN_MAX_RESULTS = 1
 const MAX_MAX_RESULTS = 10
 /** Outbound request budget; a slow search should fail the tool, not the turn. */
 const DEFAULT_TIMEOUT_MS = 15_000
+
+export type WebSearchProviderId = 'tavily' | 'brave' | 'serper'
+export type WebSearchMode = 'auto' | WebSearchProviderId
+
+const PROVIDER_ORDER: WebSearchProviderId[] = ['tavily', 'brave', 'serper']
+
+export interface CreateWebSearchToolsOptions {
+  /**
+   * Legacy Tavily-only key. Still accepted so existing callers/tests keep working.
+   * When `mode` is omitted and only this field is set, search stays Tavily-only.
+   */
+  apiKey?: string
+  tavilyApiKey?: string
+  braveApiKey?: string
+  serperApiKey?: string
+  mode?: WebSearchMode
+  timeoutMs?: number
+}
 
 /**
  * A search hit, normalized from the provider response into the small shape this
@@ -113,6 +133,35 @@ function wrapUntrusted(snippet: string, sourceUrl: string): string {
   return `<untrusted_content source="${sanitizeUrl(sourceUrl)}">\n${body}\n</untrusted_content>`
 }
 
+function sliceErrorBody(text: string): string {
+  return text.slice(0, 200)
+}
+
+async function readErrorDetail(response: Response): Promise<string> {
+  return sliceErrorBody(await response.text().catch(() => ''))
+}
+
+function providerHttpError(provider: WebSearchProviderId, status: number, detail: string): Error {
+  return new Error(`web search failed: ${provider} ${status}${detail ? `: ${detail}` : ''}`)
+}
+
+function providerNonJsonError(provider: WebSearchProviderId): Error {
+  return new Error(`web search failed: ${provider} returned a non-JSON response`)
+}
+
+function applySiteFilters(query: string, input: WebSearchInput): string {
+  const parts = [query]
+  if (input.include_domains?.length) {
+    const sites = input.include_domains.map(domain => `site:${domain}`).join(' OR ')
+    parts.push(`(${sites})`)
+  }
+  if (input.exclude_domains?.length) {
+    for (const domain of input.exclude_domains)
+      parts.push(`-site:${domain}`)
+  }
+  return parts.join(' ')
+}
+
 async function searchTavily(apiKey: string, input: WebSearchInput, maxResults: number, signal: AbortSignal): Promise<SearchResult[]> {
   const body: Record<string, unknown> = {
     query: input.query,
@@ -136,25 +185,17 @@ async function searchTavily(apiKey: string, input: WebSearchInput, maxResults: n
     signal,
   })
 
-  if (!response.ok) {
-    // Slice the body so a failing endpoint never dumps a full payload into the
-    // model context or logs.
-    const detail = (await response.text().catch(() => '')).slice(0, 200)
-    throw new Error(`web search failed: tavily ${response.status}${detail ? `: ${detail}` : ''}`)
-  }
+  if (!response.ok)
+    throw providerHttpError('tavily', response.status, await readErrorDetail(response))
 
-  // A 2xx with a non-JSON body (an HTML proxy/error page, a truncated response)
-  // would otherwise throw an opaque SyntaxError; surface it in the same taxonomy.
   let json: { results?: Array<{ title?: string, url?: string, content?: string, score?: number, published_date?: string }> }
   try {
     json = await response.json()
   }
   catch {
-    throw new Error('web search failed: tavily returned a non-JSON response')
+    throw providerNonJsonError('tavily')
   }
 
-  // Guard the shape before mapping: a 2xx whose `results` is missing or not an
-  // array is treated as "no results" rather than throwing on `.map`.
   const results = Array.isArray(json.results) ? json.results : []
   return results.map(result => ({
     title: result.title ?? '',
@@ -163,6 +204,129 @@ async function searchTavily(apiKey: string, input: WebSearchInput, maxResults: n
     ...(typeof result.score === 'number' ? { score: result.score } : {}),
     ...(result.published_date ? { ageHint: result.published_date } : {}),
   }))
+}
+
+const BRAVE_FRESHNESS: Record<NonNullable<WebSearchInput['time_range']>, string> = {
+  day: 'pd',
+  week: 'pw',
+  month: 'pm',
+  year: 'py',
+}
+
+async function searchBrave(apiKey: string, input: WebSearchInput, maxResults: number, signal: AbortSignal): Promise<SearchResult[]> {
+  const url = new URL(BRAVE_SEARCH_URL)
+  url.searchParams.set('q', applySiteFilters(input.query, input))
+  url.searchParams.set('count', String(maxResults))
+  if (input.time_range)
+    url.searchParams.set('freshness', BRAVE_FRESHNESS[input.time_range])
+
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: {
+      'accept': 'application/json',
+      'x-subscription-token': apiKey,
+    },
+    signal,
+  })
+
+  if (!response.ok)
+    throw providerHttpError('brave', response.status, await readErrorDetail(response))
+
+  let json: { web?: { results?: Array<{ title?: string, url?: string, description?: string, age?: string }> } }
+  try {
+    json = await response.json()
+  }
+  catch {
+    throw providerNonJsonError('brave')
+  }
+
+  const results = Array.isArray(json.web?.results) ? json.web.results : []
+  return results.map(result => ({
+    title: result.title ?? '',
+    url: result.url ?? '',
+    snippet: (result.description ?? '').slice(0, DEFAULT_RESULT_CHARS),
+    ...(result.age ? { ageHint: result.age } : {}),
+  }))
+}
+
+const SERPER_TBS: Record<NonNullable<WebSearchInput['time_range']>, string> = {
+  day: 'qdr:d',
+  week: 'qdr:w',
+  month: 'qdr:m',
+  year: 'qdr:y',
+}
+
+async function searchSerper(apiKey: string, input: WebSearchInput, maxResults: number, signal: AbortSignal): Promise<SearchResult[]> {
+  const body: Record<string, unknown> = {
+    q: applySiteFilters(input.query, input),
+    num: maxResults,
+  }
+  if (input.time_range)
+    body.tbs = SERPER_TBS[input.time_range]
+
+  const response = await fetch(SERPER_SEARCH_URL, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      'x-api-key': apiKey,
+    },
+    body: JSON.stringify(body),
+    signal,
+  })
+
+  if (!response.ok)
+    throw providerHttpError('serper', response.status, await readErrorDetail(response))
+
+  let json: { organic?: Array<{ title?: string, link?: string, snippet?: string, date?: string }> }
+  try {
+    json = await response.json()
+  }
+  catch {
+    throw providerNonJsonError('serper')
+  }
+
+  const results = Array.isArray(json.organic) ? json.organic : []
+  return results.map(result => ({
+    title: result.title ?? '',
+    url: result.link ?? '',
+    snippet: (result.snippet ?? '').slice(0, DEFAULT_RESULT_CHARS),
+    ...(result.date ? { ageHint: result.date } : {}),
+  }))
+}
+
+function resolveKeys(options: CreateWebSearchToolsOptions) {
+  return {
+    tavily: (options.tavilyApiKey ?? options.apiKey ?? '').trim(),
+    brave: (options.braveApiKey ?? '').trim(),
+    serper: (options.serperApiKey ?? '').trim(),
+  } as const
+}
+
+function resolveMode(options: CreateWebSearchToolsOptions): WebSearchMode {
+  if (options.mode)
+    return options.mode
+  // Legacy `{ apiKey }` callers are Tavily-only so existing tests stay isolated.
+  return 'tavily'
+}
+
+export function providersToTry(mode: WebSearchMode, keys: { tavily: string, brave: string, serper: string }): WebSearchProviderId[] {
+  if (mode === 'auto')
+    return PROVIDER_ORDER.filter(id => keys[id].length > 0)
+  return keys[mode].length > 0 ? [mode] : []
+}
+
+async function searchWithProvider(
+  provider: WebSearchProviderId,
+  apiKey: string,
+  input: WebSearchInput,
+  maxResults: number,
+  signal: AbortSignal,
+): Promise<SearchResult[]> {
+  if (provider === 'tavily')
+    return searchTavily(apiKey, input, maxResults, signal)
+  if (provider === 'brave')
+    return searchBrave(apiKey, input, maxResults, signal)
+  return searchSerper(apiKey, input, maxResults, signal)
 }
 
 /**
@@ -187,23 +351,22 @@ function formatResults(query: string, results: SearchResult[]): string {
 }
 
 /**
- * Builds the `web_search` LLM tool, backed by Tavily.
+ * Builds the `web_search` LLM tool.
  *
- * Only mount this when an API key is configured — a search with no key can only
- * ever error, so callers gate on the web-search module's `configured` state and
- * simply omit the tool otherwise (see `resolveWebSearchTools` in
- * `stores/ai/chat-llm/tool-resolver.ts`). The returned tool reads the web on the model's
- * behalf; results are wrapped as untrusted content and must be paired with
- * {@link WEB_SEARCH_TOOLSET_PROMPT} in the system prompt.
+ * Only mount this when at least one API key is configured — a search with no key
+ * can only ever error, so callers gate on the web-search module's `configured`
+ * state and simply omit the tool otherwise (see `resolveWebSearchTools` in
+ * `stores/ai/chat-llm/tool-resolver.ts`). Results are wrapped as untrusted
+ * content and must be paired with {@link WEB_SEARCH_TOOLSET_PROMPT}.
  *
- * `options.apiKey` is the Tavily key (BYO, from the web-search module settings);
- * `options.timeoutMs` bounds the outbound request (default 15000ms).
+ * In `auto` mode the tool tries Tavily, then Brave, then Serper, skipping empty
+ * keys and moving on when a provider errors (timeout, HTTP 4xx/5xx, bad JSON).
  */
-export async function createWebSearchTools(options: { apiKey: string, timeoutMs?: number }): Promise<Tool[]> {
-  const { apiKey, timeoutMs = DEFAULT_TIMEOUT_MS } = options
+export async function createWebSearchTools(options: CreateWebSearchToolsOptions): Promise<Tool[]> {
+  const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS
+  const keys = resolveKeys(options)
+  const mode = resolveMode(options)
 
-  // Keep the generated JSON Schema provider-neutral. Each provider adapter
-  // converts unsupported schema forms before it sends the request.
   const parameters = await toJsonSchema(webSearchParameters)
 
   return [
@@ -216,14 +379,27 @@ export async function createWebSearchTools(options: { apiKey: string, timeoutMs?
       parameters,
       execute: async (rawInput, { abortSignal }: ToolExecuteOptions) => {
         const input = rawInput as WebSearchInput
-        // Keep the runtime range check because rawTool does not validate input.
         const maxResults = Math.min(Math.max(MIN_MAX_RESULTS, Math.trunc(input.max_results ?? DEFAULT_MAX_RESULTS)), MAX_MAX_RESULTS)
-        // Compose the caller's abort (turn cancelled) with our own timeout so
-        // either can cancel the outbound fetch.
         const timeout = AbortSignal.timeout(timeoutMs)
         const signal = abortSignal ? AbortSignal.any([abortSignal, timeout]) : timeout
-        const results = await searchTavily(apiKey, input, maxResults, signal)
-        return formatResults(input.query, results)
+
+        const queue = providersToTry(mode, keys)
+        if (queue.length === 0)
+          throw new Error('web search failed: no search provider key is configured')
+
+        const errors: string[] = []
+        for (const provider of queue) {
+          try {
+            const results = await searchWithProvider(provider, keys[provider], input, maxResults, signal)
+            return formatResults(input.query, results)
+          }
+          catch (error) {
+            const message = error instanceof Error ? error.message : String(error)
+            errors.push(message)
+          }
+        }
+
+        throw new Error(errors.join(' | '))
       },
     }),
   ]

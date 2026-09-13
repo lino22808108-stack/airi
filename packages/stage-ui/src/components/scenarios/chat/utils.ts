@@ -1,5 +1,8 @@
 import type { ChatHistoryItem } from '../../../types/chat'
 
+/** Screen-stream user turns stay in the model transcript but not in the chat UI. */
+const SCREEN_STREAM_PROMPT_PREFIX = '[Screen]'
+
 function isTextPart(part: unknown): part is { type: 'text', text?: string } {
   return typeof part === 'object'
     && part !== null
@@ -65,6 +68,13 @@ export function getChatHistoryItemCopyText(message: ChatHistoryItem): string {
   }
 
   return ''
+}
+
+export function isHiddenScreenStreamPrompt(message: ChatHistoryItem | undefined): boolean {
+  if (!message || message.role !== 'user')
+    return false
+
+  return getChatHistoryItemCopyText(message).trimStart().startsWith(SCREEN_STREAM_PROMPT_PREFIX)
 }
 
 export function getChatHistoryItemKey(message: ChatHistoryItem | undefined, index: number): string | number {

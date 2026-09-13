@@ -31,6 +31,7 @@ const {
 } = storeToRefs(visionStore)
 const {
   captureIntervalMs,
+  commentAfterSceneChanges,
   captureCount,
   contextUpdateCount,
   lastCaptureAt,
@@ -347,21 +348,31 @@ function formatRelativeTime(timestamp: number | null) {
       <div :class="['flex', 'flex-col', 'gap-4']">
         <div>
           <h2 :class="['text-lg', 'text-neutral-500', 'md:text-2xl', 'dark:text-neutral-400']">
-            Vision capture cadence
+            Screen stream
           </h2>
           <div :class="['text-neutral-400', 'dark:text-neutral-400']">
-            Tune how frequently the vision ticker captures a frame.
+            Consciousness (the chat model) is her eyes. This tab is the stream: capture interval and how many scene changes before she comments. Overlay shows that many numbered frames, maximum 9.
           </div>
         </div>
 
         <FieldRange
           v-model="captureIntervalMs"
           label="Capture interval"
-          description="Lower values capture more frequently and may increase resource use."
+          description="How often a frame is grabbed from the shared screen."
           :min="500"
           :max="15000"
           :step="250"
           :format-value="value => `${(value / 1000).toFixed(2)}s`"
+        />
+
+        <FieldRange
+          v-model="commentAfterSceneChanges"
+          label="Comment after scene changes"
+          description="After this many distinct scene changes she sends that many numbered frames to the chat model and comments in character. Maximum 9."
+          :min="1"
+          :max="9"
+          :step="1"
+          :format-value="value => `${Math.round(Number(value))}`"
         />
 
         <div :class="['grid', 'gap-4', 'md:grid-cols-3']">

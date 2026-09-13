@@ -18,6 +18,8 @@ export type ControlsIslandAction
     | 'enable_fade_on_hover'
     | 'disable_fade_on_hover'
     | 'close_app'
+    | 'start_screen_stream'
+    | 'stop_screen_stream'
 
 export const controlsIslandActionEvent = defineEvent<{
   action: ControlsIslandAction

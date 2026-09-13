@@ -39,7 +39,7 @@ export interface ResolveLlmToolsOptions {
   sparkCommandTools?: ToolSource
   /**
    * Web search tools. Supplying this also avoids reading the web-search module
-   * store; by default the tool is included only when a Tavily API key is
+   * store; by default the tool is included only when a search API key is
    * configured (a keyless search can only error).
    *
    * @default gated on useWebSearchStore().configured
@@ -124,9 +124,12 @@ async function resolveWebSearchTools(webSearchTools?: ToolSource): Promise<Tool[
   if (!webSearchStore.configured)
     return []
 
-  // Trim the key: `configured` is computed on the trimmed value, so a key pasted
-  // with trailing whitespace/newline reads as ready but would 401 if sent raw.
-  return createWebSearchTools({ apiKey: webSearchStore.apiKey.trim() })
+  return createWebSearchTools({
+    mode: webSearchStore.providerMode,
+    tavilyApiKey: webSearchStore.apiKey.trim(),
+    braveApiKey: webSearchStore.braveApiKey.trim(),
+    serperApiKey: webSearchStore.serperApiKey.trim(),
+  })
 }
 
 /**

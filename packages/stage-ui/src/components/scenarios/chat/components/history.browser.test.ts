@@ -1330,4 +1330,43 @@ describe('chat history', () => {
       },
     ]])
   })
+
+  it('hides screen-stream user bubbles and still shows her reply', async () => {
+    const messages: ChatHistoryItem[] = [
+      {
+        id: 'screen-1',
+        role: 'user',
+        content: '[Screen] You are looking at 3 numbered frames of the user\'s screen.',
+      },
+      {
+        id: 'assistant-1',
+        role: 'assistant',
+        content: 'Looks like a cozy village.',
+        slices: [{ type: 'text', text: 'Looks like a cozy village.' }],
+        tool_results: [],
+      },
+      {
+        id: 'user-2',
+        role: 'user',
+        content: 'hello there',
+      },
+    ]
+
+    const screen = await render(ChatHistory, {
+      props: {
+        messages,
+        style: 'height: 480px; width: 480px; overflow-y: auto;',
+      },
+      global: {
+        plugins: [createEnglishI18n()],
+      },
+    })
+
+    await vi.waitFor(() => {
+      expect(screen.container.textContent).toContain('Looks like a cozy village.')
+      expect(screen.container.textContent).toContain('hello there')
+    })
+    expect(screen.container.textContent).not.toContain('[Screen]')
+    expect(screen.container.textContent).not.toContain('numbered frames')
+  })
 })

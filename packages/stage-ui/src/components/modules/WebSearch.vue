@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { Callout, FieldCheckbox, FieldInput } from '@proj-airi/ui'
+import { Callout, FieldCheckbox, FieldInput, FieldSelect } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { useWebSearchStore } from '../../stores/modules/web-search'
@@ -9,7 +10,14 @@ const { t } = useI18n()
 const webSearchStore = useWebSearchStore()
 // Settings persist to localStorage on change (useLocalStorageManualReset), and
 // the tool + prompt react to `configured` — so there is no explicit save step.
-const { enabled, apiKey, configured } = storeToRefs(webSearchStore)
+const { enabled, apiKey, braveApiKey, serperApiKey, providerMode, configured } = storeToRefs(webSearchStore)
+
+const providerOptions = computed(() => [
+  { label: t('settings.pages.modules.web-search.provider-auto'), value: 'auto' as const },
+  { label: t('settings.pages.modules.web-search.provider-tavily'), value: 'tavily' as const },
+  { label: t('settings.pages.modules.web-search.provider-brave'), value: 'brave' as const },
+  { label: t('settings.pages.modules.web-search.provider-serper'), value: 'serper' as const },
+])
 </script>
 
 <template>
@@ -26,12 +34,35 @@ const { enabled, apiKey, configured } = storeToRefs(webSearchStore)
       :description="t('settings.pages.modules.web-search.enable-description')"
     />
 
+    <FieldSelect
+      v-model="providerMode"
+      :label="t('settings.pages.modules.web-search.provider')"
+      :description="t('settings.pages.modules.web-search.provider-description')"
+      :options="providerOptions"
+    />
+
     <FieldInput
       v-model="apiKey"
       type="password"
       :label="t('settings.pages.modules.web-search.api-key')"
       :description="t('settings.pages.modules.web-search.api-key-description')"
       :placeholder="t('settings.pages.modules.web-search.api-key-placeholder')"
+    />
+
+    <FieldInput
+      v-model="braveApiKey"
+      type="password"
+      :label="t('settings.pages.modules.web-search.brave-api-key')"
+      :description="t('settings.pages.modules.web-search.brave-api-key-description')"
+      :placeholder="t('settings.pages.modules.web-search.brave-api-key-placeholder')"
+    />
+
+    <FieldInput
+      v-model="serperApiKey"
+      type="password"
+      :label="t('settings.pages.modules.web-search.serper-api-key')"
+      :description="t('settings.pages.modules.web-search.serper-api-key-description')"
+      :placeholder="t('settings.pages.modules.web-search.serper-api-key-placeholder')"
     />
 
     <Callout

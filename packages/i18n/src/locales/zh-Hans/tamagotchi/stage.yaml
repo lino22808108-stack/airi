@@ -32,6 +32,18 @@ docs:
   'logging-in': 登录中...
   'account': 账号
   'logout': 退出登录
+  'screen-stream':
+    start: 共享屏幕
+    stop: 停止共享屏幕
+    pick: 选择屏幕
+    pick-hint: 选择显示器或窗口。眼睛是聊天模型（意识）。间隔和场景切换次数在「设置 → 视觉」。
+    displays: 显示器
+    windows: 窗口
+    empty: 没有可共享的内容
+    loading: 加载中...
+    vision-unconfigured: 请先在 设置 → 模块 → 意识 中选择能看图的聊天模型。视觉页只是串流设置。
+    overlay-title: 屏幕
+    overlay-changes: 场景切换 {current}/{target}
 widgets:
   close: 关闭小部件
   empty:

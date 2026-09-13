@@ -22,6 +22,7 @@ describe('useWebSearchStore', () => {
     it('is false when enabled with an empty or whitespace-only key', () => {
       const store = useWebSearchStore()
       store.enabled = true
+      store.providerMode = 'tavily'
 
       store.apiKey = ''
       expect(store.configured).toBe(false)
@@ -30,11 +31,27 @@ describe('useWebSearchStore', () => {
       expect(store.configured).toBe(false)
     })
 
-    it('is true when enabled with a non-empty key', () => {
+    it('is true when enabled with a non-empty Tavily key', () => {
       const store = useWebSearchStore()
       store.enabled = true
       store.apiKey = 'tvly-key'
       expect(store.configured).toBe(true)
+    })
+
+    it('is true in auto mode when only a Brave key is set', () => {
+      const store = useWebSearchStore()
+      store.enabled = true
+      store.providerMode = 'auto'
+      store.braveApiKey = 'brave-key'
+      expect(store.configured).toBe(true)
+    })
+
+    it('is false when locked to Brave without a Brave key', () => {
+      const store = useWebSearchStore()
+      store.enabled = true
+      store.providerMode = 'brave'
+      store.apiKey = 'tvly-key'
+      expect(store.configured).toBe(false)
     })
   })
 

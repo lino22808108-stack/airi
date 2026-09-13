@@ -32,6 +32,18 @@ docs:
   'logging-in': Connexion en cours...
   'account': Compte
   'logout': Compte
+  'screen-stream':
+    start: Partager l'écran
+    stop: Arrêter le partage
+    pick: Choisir un écran
+    pick-hint: Choisis un écran ou une fenêtre. Ses yeux sont le modèle de chat (Consciousness). Intervalle et changements de scène dans Réglages → Vision.
+    displays: Écrans
+    windows: Fenêtres
+    empty: Rien à partager
+    loading: Chargement...
+    vision-unconfigured: Choisis un modèle de chat qui voit les images dans Paramètres → Modules → Consciousness. L'onglet Vision ne règle que le stream.
+    overlay-title: Écran
+    overlay-changes: Changements de scène {current}/{target}
 widgets:
   close: Fermer le widget
   empty:

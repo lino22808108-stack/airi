@@ -32,6 +32,20 @@ docs:
   'logging-in': Выполняется вход...
   'account': Аккаунт
   'logout': Выйти
+  'screen-stream':
+    start: Показать экран
+    stop: Остановить показ экрана
+    pick: Выбери экран
+    pick-hint: Выбери монитор или окно. Глаза — чат-модель (Сознание). Интервал и N смен сцены — в Настройки → Зрение.
+    displays: Экраны
+    windows: Окна
+    empty: Нечего шарить
+    loading: Загрузка...
+    vision-unconfigured: Сначала выбери чат-модель с картинками в Настройки → Модули → Сознание. Вкладка зрения — только настройки стрима.
+    overlay-title: Экран
+    overlay-changes: Смены сцены {current}/{target}
+    overlay-hide: Скрыть кадры
+    overlay-show: Показать кадры
 widgets:
   close: Закрыть виджет
   empty:

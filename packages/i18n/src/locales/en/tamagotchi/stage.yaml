@@ -32,6 +32,20 @@ docs:
   'logging-in': Signing in...
   'account': Account
   'logout': Sign out
+  'screen-stream':
+    start: Share screen
+    stop: Stop screen share
+    pick: Choose a screen
+    pick-hint: Pick a display or window. Her eyes are the chat model (Consciousness). Interval and scene-change count live in Settings → Vision.
+    displays: Displays
+    windows: Windows
+    empty: Nothing to share
+    loading: Loading...
+    vision-unconfigured: Set a chat model that can see images in Settings → Modules → Consciousness. The Vision tab is only stream settings.
+    overlay-title: Screen
+    overlay-changes: Scene changes {current}/{target}
+    overlay-hide: Hide frames
+    overlay-show: Show frames
 
 widgets:
   close: Close widget
